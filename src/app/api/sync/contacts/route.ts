@@ -88,11 +88,11 @@ export async function POST(request: Request) {
           .from('contacts')
           .select('id')
           .eq('phone', normalizedPhone)
-          .eq('account_id', ctx.accountId)
+          .eq('user_id', ctx.accountId)
           .maybeSingle();
 
         const contactData = {
-          account_id: ctx.accountId,
+          user_id: ctx.accountId,
           phone: normalizedPhone,
           name: excelContact.name,
           email: excelContact.email || null,
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
               .from('contacts')
               .select('id')
               .eq('phone', normalizedPhone)
-              .eq('account_id', ctx.accountId)
+              .eq('user_id', ctx.accountId)
               .single();
 
             if (newContact) {
