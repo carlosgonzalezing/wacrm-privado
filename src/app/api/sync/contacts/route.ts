@@ -45,12 +45,29 @@ export async function POST(request: Request) {
 
     const syncType = body.sync_type || 'incremental';
     const contacts = body.contacts;
-    
+
+    // Obtener user_id válido del creador de la API key
+    // Si createdBy es null (usuario eliminado), buscar cualquier usuario de la cuenta
+    let userId = ctx.createdBy;
+    if (!userId) {
+      const { data: accountMember } = await ctx.supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('account_id', ctx.accountId)
+        .limit(1)
+        .single();
+      userId = accountMember?.user_id;
+    }
+
+    if (!userId) {
+      return fail('internal', 'No valid user found for this account', 500);
+    }
+
     // Crear log de sincronización
     const { data: logData, error: logError } = await ctx.supabase
       .from('excel_sync_logs')
       .insert({
-        user_id: ctx.accountId,
+        user_id: userId,
         sync_type: syncType,
         records_processed: contacts.length,
         started_at: new Date().toISOString(),
@@ -88,11 +105,11 @@ export async function POST(request: Request) {
           .from('contacts')
           .select('id')
           .eq('phone', normalizedPhone)
-          .eq('user_id', ctx.accountId)
+          .eq('account_id', ctx.accountId)
           .maybeSingle();
 
         const contactData = {
-          user_id: ctx.accountId,
+          user_id: userId,
           account_id: ctx.accountId,
           phone: normalizedPhone,
           name: excelContact.name,
@@ -134,7 +151,7 @@ export async function POST(request: Request) {
               .from('contacts')
               .select('id')
               .eq('phone', normalizedPhone)
-              .eq('user_id', ctx.accountId)
+              .eq('account_id', ctx.accountId)
               .single();
 
             if (newContact) {
@@ -144,7 +161,7 @@ export async function POST(request: Request) {
                   .from('tags')
                   .select('id')
                   .eq('name', tagName)
-                  .eq('user_id', ctx.accountId)
+                  .eq('user_id', userId)
                   .maybeSingle();
 
                 let tagId = existingTag?.id;
@@ -152,7 +169,7 @@ export async function POST(request: Request) {
                   const { data: newTag } = await ctx.supabase
                     .from('tags')
                     .insert({
-                      user_id: ctx.accountId,
+                      user_id: userId,
                       name: tagName,
                       color: '#3b82f6',
                     })
