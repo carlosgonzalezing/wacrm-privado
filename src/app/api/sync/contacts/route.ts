@@ -93,6 +93,7 @@ export async function POST(request: Request) {
 
         const contactData = {
           user_id: ctx.accountId,
+          account_id: ctx.accountId,
           phone: normalizedPhone,
           name: excelContact.name,
           email: excelContact.email || null,
