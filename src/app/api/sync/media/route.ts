@@ -47,7 +47,23 @@ export async function POST(request: Request) {
     }
 
     const files = body.files;
-    
+
+    // Obtener user_id válido del creador de la API key
+    let userId = ctx.createdBy;
+    if (!userId) {
+      const { data: accountMember } = await ctx.supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('account_id', ctx.accountId)
+        .limit(1)
+        .single();
+      userId = accountMember?.user_id;
+    }
+
+    if (!userId) {
+      return fail('internal', 'No valid user found for this account', 500);
+    }
+
     let created = 0;
     let updated = 0;
     let failed = 0;
@@ -68,11 +84,12 @@ export async function POST(request: Request) {
           .from('media_library')
           .select('id')
           .eq('onedrive_id', file.onedrive_id)
-          .eq('user_id', ctx.accountId)
+          .eq('user_id', userId)
           .maybeSingle();
 
         const mediaData = {
-          user_id: ctx.accountId,
+          user_id: userId,
+          account_id: ctx.accountId,
           filename: file.filename,
           file_type: file.file_type,
           file_url: file.file_url,
