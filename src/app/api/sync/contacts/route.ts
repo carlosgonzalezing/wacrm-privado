@@ -164,12 +164,13 @@ export async function POST(request: Request) {
                 if (tagId) {
                   await ctx.supabase
                     .from('contact_tags')
-                    .insert({
+                    .upsert({
                       contact_id: newContact.id,
                       tag_id: tagId,
-                    })
-                    .onConflict('contact_id,tag_id')
-                    .ignore();
+                    }, {
+                      onConflict: 'contact_id,tag_id',
+                      ignoreDuplicates: true
+                    });
                 }
               }
             }
