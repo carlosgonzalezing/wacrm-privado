@@ -227,6 +227,7 @@ export default function BroadcastsPage() {
                 </TableHead>
                 <TableHead className="hidden text-muted-foreground lg:table-cell">{t('table.delivery')}</TableHead>
                 <TableHead className="hidden text-muted-foreground lg:table-cell">{t('table.read')}</TableHead>
+                <TableHead className="hidden text-muted-foreground xl:table-cell">{t('table.leads')}</TableHead>
                 <TableHead className="text-muted-foreground">{t('table.status')}</TableHead>
                 <TableHead className="hidden text-muted-foreground sm:table-cell">{t('table.date')}</TableHead>
               </TableRow>
@@ -262,6 +263,16 @@ export default function BroadcastsPage() {
                         total={broadcast.total_recipients}
                         color="bg-blue-500"
                       />
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-foreground">
+                          {broadcast.leads_count || 0}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({broadcast.qualified_leads_count || 0} qualified)
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span

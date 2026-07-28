@@ -397,6 +397,14 @@ export interface Broadcast {
   read_count: number;
   replied_count: number;
   failed_count: number;
+  /** Campaign lead metrics (migration 037) */
+  leads_count?: number;
+  not_interested_count?: number;
+  needs_info_count?: number;
+  requesting_call_count?: number;
+  pending_ai_count?: number;
+  qualified_leads_count?: number;
+  converted_leads_count?: number;
   created_at: string;
 }
 

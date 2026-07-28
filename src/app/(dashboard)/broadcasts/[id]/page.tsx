@@ -151,11 +151,13 @@ export default function BroadcastDetailPage() {
 
   const [broadcast, setBroadcast] = useState<Broadcast | null>(null);
   const [recipients, setRecipients] = useState<BroadcastRecipient[]>([]);
+  const [campaignLeads, setCampaignLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<RecipientStatus | 'all'>(
     'all',
   );
+  const [leadFilter, setLeadFilter] = useState<'all' | 'interested' | 'not_interested' | 'needs_info' | 'requesting_call'>('all');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -181,6 +183,33 @@ export default function BroadcastDetailPage() {
 
         if (recsError) throw recsError;
         setRecipients(recs ?? []);
+
+        // Fetch campaign leads with AI classification
+        const { data: leads, error: leadsError } = await supabase
+          .from('campaign_leads')
+          .select(`
+            *,
+            contacts (
+              id,
+              name,
+              phone,
+              email,
+              company
+            ),
+            profiles:advisor_id (
+              full_name,
+              email
+            )
+          `)
+          .eq('broadcast_id', broadcastId)
+          .order('created_at', { ascending: false });
+
+        if (leadsError) {
+          // If campaign_leads table doesn't exist yet, just log and continue
+          console.warn('Campaign leads not available:', leadsError);
+        } else {
+          setCampaignLeads(leads ?? []);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : t('notFound'));
       } finally {
@@ -197,6 +226,14 @@ export default function BroadcastDetailPage() {
         ? recipients
         : recipients.filter((r) => r.status === statusFilter),
     [recipients, statusFilter],
+  );
+
+  const filteredLeads = useMemo(
+    () =>
+      leadFilter === 'all'
+        ? campaignLeads
+        : campaignLeads.filter((l) => l.classification === leadFilter),
+    [campaignLeads, leadFilter],
   );
 
   function handleExport() {
@@ -394,7 +431,198 @@ export default function BroadcastDetailPage() {
         />
       </div>
 
+      {/* AI Lead Stats — 4 cards: Leads / Qualified / Not Interested / Pending AI */}
+      {campaignLeads.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard
+            label="Total Leads"
+            value={broadcast.leads_count || 0}
+            total={broadcast.replied_count || 1}
+            icon={<Users className="h-4 w-4" />}
+            color="bg-purple-500/10 text-purple-400"
+          />
+          <StatCard
+            label="Qualified"
+            value={broadcast.qualified_leads_count || 0}
+            total={broadcast.leads_count || 1}
+            icon={<CheckCheck className="h-4 w-4" />}
+            color="bg-green-500/10 text-green-400"
+          />
+          <StatCard
+            label="Not Interested"
+            value={broadcast.not_interested_count || 0}
+            total={broadcast.leads_count || 1}
+            icon={<AlertCircle className="h-4 w-4" />}
+            color="bg-red-500/10 text-red-400"
+          />
+          <StatCard
+            label="Pending AI"
+            value={broadcast.pending_ai_count || 0}
+            total={broadcast.leads_count || 1}
+            icon={<Loader2 className="h-4 w-4" />}
+            color="bg-yellow-500/10 text-yellow-400"
+          />
+        </div>
+      )}
+
       <FunnelChart steps={funnelSteps} />
+
+      {/* Campaign Leads Table */}
+      {campaignLeads.length > 0 && (
+        <div className="rounded-xl border border-border bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <h2 className="text-sm font-medium text-foreground">
+              AI Leads ({filteredLeads.length} of {campaignLeads.length})
+            </h2>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border text-muted-foreground hover:bg-muted"
+                    />
+                  }
+                >
+                  <Filter className="h-3.5 w-3.5" />
+                  {leadFilter === 'all'
+                    ? 'All Classifications'
+                    : leadFilter.replace('_', ' ').toUpperCase()}
+                  <ChevronDown className="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="border-border bg-popover">
+                  <DropdownMenuItem
+                    onClick={() => setLeadFilter('all')}
+                    className={leadFilter === 'all' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    All Classifications
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setLeadFilter('interested')}
+                    className={leadFilter === 'interested' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    Interested
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setLeadFilter('not_interested')}
+                    className={leadFilter === 'not_interested' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    Not Interested
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setLeadFilter('needs_info')}
+                    className={leadFilter === 'needs_info' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    Needs Info
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setLeadFilter('requesting_call')}
+                    className={leadFilter === 'requesting_call' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    Requesting Call
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const csv = toCsv([
+                    ['Contact', 'Phone', 'Email', 'Company', 'Classification', 'Interest Level', 'AI Summary', 'Status', 'Assigned Advisor'],
+                    ...filteredLeads.map((l) => [
+                      l.contacts?.name || '',
+                      l.contacts?.phone || '',
+                      l.contacts?.email || '',
+                      l.contacts?.company || '',
+                      l.classification || '',
+                      l.interest_level || '',
+                      `"${(l.ai_summary || '').replace(/"/g, '""')}"`,
+                      l.status || '',
+                      l.profiles?.full_name || ''
+                    ])
+                  ]);
+                  const safeName = broadcast.name.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
+                  downloadBlob(`leads-${safeName}-${broadcastId.slice(0, 8)}.csv`, csv);
+                }}
+                disabled={filteredLeads.length === 0}
+                className="border-border text-muted-foreground hover:bg-muted"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export Leads
+              </Button>
+            </div>
+          </div>
+
+          {filteredLeads.length === 0 ? (
+            <div className="flex h-32 items-center justify-center">
+              <p className="text-sm text-muted-foreground">
+                No leads match the selected filter
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">Contact</TableHead>
+                    <TableHead className="text-muted-foreground">Phone</TableHead>
+                    <TableHead className="text-muted-foreground">Classification</TableHead>
+                    <TableHead className="text-muted-foreground">Interest Level</TableHead>
+                    <TableHead className="text-muted-foreground">AI Summary</TableHead>
+                    <TableHead className="text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-muted-foreground">Assigned Advisor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLeads.map((lead) => (
+                    <TableRow key={lead.id} className="border-border">
+                      <TableCell className="font-medium text-foreground">
+                        {lead.contacts?.name || 'Unknown'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {lead.contacts?.phone || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                            lead.classification === 'interested' ? 'bg-green-500/10 text-green-400 border-green-500/30' :
+                            lead.classification === 'not_interested' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+                            lead.classification === 'needs_info' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                            lead.classification === 'requesting_call' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
+                            'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+                          }`}
+                        >
+                          {lead.classification.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {lead.interest_level ? (
+                          <span className="text-xs font-medium text-foreground">
+                            {lead.interest_level.toUpperCase()}
+                          </span>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
+                        {lead.ai_summary || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-foreground">
+                          {lead.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {lead.profiles?.full_name || 'Unassigned'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recipients Table */}
       <div className="rounded-xl border border-border bg-card">
