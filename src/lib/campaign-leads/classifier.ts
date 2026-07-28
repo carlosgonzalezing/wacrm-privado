@@ -23,6 +23,20 @@ export interface ClassificationContext {
   conversation_history: Array<{ role: string; content: string }>
 }
 
+export interface CampaignLeadData {
+  account_id: string
+  broadcast_id: string
+  contact_id: string
+  conversation_id: string
+  classification: string
+  interest_level: string | null
+  ai_summary: string
+  metadata: any
+  first_response_at: string
+  last_activity_at: string
+  status?: string
+}
+
 /**
  * Classify a lead based on conversation context using AI
  */
@@ -207,6 +221,7 @@ async function classifyWithGroq(
 /**
  * Create or update a campaign lead based on classification
  */
+// @ts-ignore - Supabase type inference issues with dynamic table operations
 export async function upsertCampaignLead(
   supabase: ReturnType<typeof createClient>,
   data: {
@@ -225,9 +240,9 @@ export async function upsertCampaignLead(
     .select('*')
     .eq('contact_id', contact_id)
     .eq('broadcast_id', broadcast_id)
-    .maybeSingle()
+    .maybeSingle() as { data: any | null }
 
-  const leadData = {
+  const leadData: any = {
     account_id,
     broadcast_id,
     contact_id,
@@ -247,6 +262,7 @@ export async function upsertCampaignLead(
     // Update existing lead
     const { error } = await supabase
       .from('campaign_leads')
+      // @ts-ignore
       .update(leadData)
       .eq('id', existingLead.id)
 
@@ -256,6 +272,7 @@ export async function upsertCampaignLead(
     // Create new lead
     const { data: newLead, error } = await supabase
       .from('campaign_leads')
+      // @ts-ignore
       .insert({
         ...leadData,
         status: 'new'
