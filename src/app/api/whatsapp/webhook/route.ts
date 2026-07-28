@@ -541,7 +541,7 @@ async function handleCampaignLeadCreation(
       .order('created_at', { ascending: true })
       .limit(20)
 
-    const conversationHistory = (messages || []).map((msg) => ({
+    const conversationHistory = (messages || []).map((msg: any) => ({
       role: msg.sender_type === 'customer' ? 'customer' : 'agent',
       content: msg.content_text || ''
     }))
@@ -811,6 +811,9 @@ async function processMessage(
   // trigger installed in migration 003).
   await flagBroadcastReplyIfAny(accountId, contactRecord.id)
 
+  // Extract inbound text for campaign lead creation
+  const inboundText = contentText ?? message.text?.body ?? ''
+
   // Create or update campaign lead if this is a response to a broadcast
   await handleCampaignLeadCreation(
     accountId,
@@ -866,7 +869,6 @@ async function processMessage(
   // message all exist before any step — including send_message — runs.
   // Fire-and-forget: a slow or failing automation must not block the
   // webhook's 200 OK response to Meta.
-  const inboundText = contentText ?? message.text?.body ?? ''
   const automationTriggers: (
     | 'new_contact_created'
     | 'first_inbound_message'
