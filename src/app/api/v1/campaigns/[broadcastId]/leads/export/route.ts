@@ -4,9 +4,9 @@ import { decrypt } from '@/lib/whatsapp/encryption'
 
 export async function GET(
   request: Request,
-  { params }: { params: { broadcastId: string } }
+  { params }: { params: Promise<{ broadcastId: string }> }
 ) {
-  const { broadcastId } = params
+  const { broadcastId } = await params
 
   // Get auth header for account context
   const authHeader = request.headers.get('authorization')
