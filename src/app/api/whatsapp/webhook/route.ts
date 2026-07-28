@@ -13,6 +13,7 @@ import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
 } from '@/lib/whatsapp/template-webhook'
+import { classifyLead, upsertCampaignLead } from '@/lib/campaign-leads/classifier'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -477,6 +478,109 @@ async function flagBroadcastReplyIfAny(accountId: string, contactId: string) {
 }
 
 /**
+ * Create or update a campaign lead when a contact responds to a broadcast.
+ * Uses AI to classify the lead's interest level and generate a summary.
+ *
+ * Runs on a best-effort basis — failures here must not break the
+ * main inbound-message flow, so errors are swallowed with a log.
+ */
+async function handleCampaignLeadCreation(
+  accountId: string,
+  contactId: string,
+  conversationId: string,
+  messageText: string,
+  configOwnerUserId: string
+) {
+  try {
+    // Find the most recent broadcast this contact was a recipient of
+    const { data: broadcastRecipient, error: recipientError } = await supabaseAdmin()
+      .from('broadcast_recipients')
+      .select('broadcast_id, broadcasts!inner(account_id)')
+      .eq('contact_id', contactId)
+      .eq('broadcasts.account_id', accountId)
+      .in('status', ['sent', 'delivered', 'read', 'replied'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (recipientError || !broadcastRecipient) {
+      // Not a broadcast response, skip lead creation
+      return
+    }
+
+    // Check if AI config exists for this account
+    const { data: aiConfig, error: aiConfigError } = await supabaseAdmin()
+      .from('ai_configs')
+      .select('*')
+      .eq('account_id', accountId)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (aiConfigError || !aiConfig) {
+      // No AI config, create lead with pending classification
+      await upsertCampaignLead(supabaseAdmin(), {
+        account_id: accountId,
+        broadcast_id: broadcastRecipient.broadcast_id,
+        contact_id: contactId,
+        conversation_id: conversationId,
+        classification: {
+          classification: 'pending_ai',
+          interest_level: null,
+          summary: 'AI classification pending',
+          confidence: 0
+        }
+      })
+      return
+    }
+
+    // Fetch conversation history for AI classification
+    const { data: messages, error: messagesError } = await supabaseAdmin()
+      .from('messages')
+      .select('sender_type, content_text')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(20)
+
+    const conversationHistory = (messages || []).map((msg) => ({
+      role: msg.sender_type === 'customer' ? 'customer' : 'agent',
+      content: msg.content_text || ''
+    }))
+
+    // Decrypt API key for AI classification
+    const decryptedApiKey = decrypt(aiConfig.api_key)
+
+    // Classify the lead using AI
+    const classification = await classifyLead(
+      {
+        conversation_id: conversationId,
+        contact_id: contactId,
+        broadcast_id: broadcastRecipient.broadcast_id,
+        account_id: accountId,
+        message_text: messageText,
+        conversation_history: conversationHistory
+      },
+      {
+        provider: aiConfig.provider,
+        model: aiConfig.model,
+        api_key: decryptedApiKey,
+        system_prompt: aiConfig.system_prompt
+      }
+    )
+
+    // Create or update the campaign lead
+    await upsertCampaignLead(supabaseAdmin(), {
+      account_id: accountId,
+      broadcast_id: broadcastRecipient.broadcast_id,
+      contact_id: contactId,
+      conversation_id: conversationId,
+      classification
+    })
+  } catch (err) {
+    console.error('[campaign-leads] handleCampaignLeadCreation failed:', err)
+  }
+}
+
+/**
  * Resolve a Meta-side message_id into the matching internal UUID, scoped
  * to one conversation. Returns null when we never received the parent
  * (e.g. a swipe-reply to a message older than this CRM install).
@@ -706,6 +810,15 @@ async function processMessage(
   // so the broadcast's `replied_count` advances (via the aggregate
   // trigger installed in migration 003).
   await flagBroadcastReplyIfAny(accountId, contactRecord.id)
+
+  // Create or update campaign lead if this is a response to a broadcast
+  await handleCampaignLeadCreation(
+    accountId,
+    contactRecord.id,
+    conversation.id,
+    inboundText,
+    configOwnerUserId
+  )
 
   // ============================================================
   // Flow runner dispatch.
