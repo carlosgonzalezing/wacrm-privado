@@ -13,6 +13,8 @@ export interface MetricsBundle {
   openDealsValue: number
   openDealsCount: number
   messagesSentToday: MetricDelta
+  leadsGenerated: MetricDelta
+  conversionRate: number
 }
 
 export interface ConversationsSeriesPoint {

@@ -42,6 +42,9 @@ export async function loadMetrics(db: DB): Promise<MetricsBundle> {
     openDeals,
     messagesToday,
     messagesYesterday,
+    leadsToday,
+    leadsYesterday,
+    totalRecipients,
   ] = await Promise.all([
     db.from('conversations').select('id', { count: 'exact', head: true }).eq('status', 'open'),
     db
@@ -73,10 +76,24 @@ export async function loadMetrics(db: DB): Promise<MetricsBundle> {
       .eq('sender_type', 'agent')
       .gte('created_at', yesterdayStart)
       .lt('created_at', todayStart),
+    db.from('campaign_leads').select('id', { count: 'exact', head: true }).gte('created_at', todayStart),
+    db
+      .from('campaign_leads')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', yesterdayStart)
+      .lt('created_at', todayStart),
+    db.from('broadcasts').select('total_recipients').eq('status', 'sent'),
   ])
 
   const openDealsRows = (openDeals.data ?? []) as { value: number | null }[]
   const openDealsValue = openDealsRows.reduce((sum, d) => sum + (d.value ?? 0), 0)
+
+  const broadcastRows = (totalRecipients.data ?? []) as { total_recipients: number }[]
+  const totalRecipientsCount = broadcastRows.reduce((sum, b) => sum + (b.total_recipients ?? 0), 0)
+  const totalLeadsCount = (leadsToday.count ?? 0) + (leadsYesterday.count ?? 0)
+  const conversionRate = totalRecipientsCount > 0
+    ? (totalLeadsCount / totalRecipientsCount) * 100
+    : 0
 
   return {
     activeConversations: {
@@ -96,6 +113,11 @@ export async function loadMetrics(db: DB): Promise<MetricsBundle> {
       current: messagesToday.count ?? 0,
       previous: messagesYesterday.count ?? 0,
     },
+    leadsGenerated: {
+      current: leadsToday.count ?? 0,
+      previous: leadsYesterday.count ?? 0,
+    },
+    conversionRate,
   }
 }
 

@@ -9,6 +9,8 @@ import {
   UserPlus,
   DollarSign,
   Send,
+  TrendingUp,
+  Users,
 } from 'lucide-react'
 
 import {
@@ -132,9 +134,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {metricsLoading || !metrics ? (
-          Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
             <MetricCard
@@ -144,8 +146,8 @@ export default function DashboardPage() {
               delta={{
                 sign: metrics.activeConversations.previous,
                 label: deltaLabel(
-                  metrics.activeConversations.previous, 
-                  t('newTodayVsYesterday'), 
+                  metrics.activeConversations.previous,
+                  t('newTodayVsYesterday'),
                   t('noChange', { suffix: t('newTodayVsYesterday') })
                 ),
               }}
@@ -183,6 +185,26 @@ export default function DashboardPage() {
                   t('noChange', { suffix: t('vsYesterday') })
                 ),
               }}
+            />
+            <MetricCard
+              title="Leads Generados"
+              value={metrics.leadsGenerated.current.toLocaleString()}
+              icon={Users}
+              delta={{
+                sign:
+                  metrics.leadsGenerated.current - metrics.leadsGenerated.previous,
+                label: deltaLabel(
+                  metrics.leadsGenerated.current - metrics.leadsGenerated.previous,
+                  t('vsYesterday'),
+                  t('noChange', { suffix: t('vsYesterday') })
+                ),
+              }}
+            />
+            <MetricCard
+              title="Tasa de Conversión"
+              value={`${metrics.conversionRate.toFixed(1)}%`}
+              icon={TrendingUp}
+              subtitle="Leads / Recipients"
             />
           </>
         )}
