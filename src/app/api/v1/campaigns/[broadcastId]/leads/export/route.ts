@@ -16,6 +16,10 @@ export async function GET(
 
   const apiKey = authHeader.substring(7)
 
+  // Get query params for filtering
+  const { searchParams } = new URL(request.url)
+  const interestLevelFilter = searchParams.get('interest_level')
+
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,8 +51,8 @@ export async function GET(
       return NextResponse.json({ error: 'Broadcast not found' }, { status: 404 })
     }
 
-    // Fetch campaign leads with contact details
-    const { data: leads, error: leadsError } = await supabase
+    // Build query with optional interest level filter
+    let leadsQuery = supabase
       .from('campaign_leads')
       .select(`
         *,
@@ -68,6 +72,13 @@ export async function GET(
       `)
       .eq('broadcast_id', broadcastId)
       .eq('account_id', accountId)
+
+    // Apply interest level filter if provided
+    if (interestLevelFilter && ['low', 'medium', 'high', 'very_high'].includes(interestLevelFilter)) {
+      leadsQuery = leadsQuery.eq('interest_level', interestLevelFilter)
+    }
+
+    const { data: leads, error: leadsError } = await leadsQuery
 
     if (leadsError) {
       console.error('Error fetching leads:', leadsError)
@@ -120,10 +131,11 @@ export async function GET(
 
     const csvContent = [csvHeaders.join(','), ...csvRows].join('\n')
 
-    // Generate filename with broadcast name and date
+    // Generate filename with broadcast name, date, and filter
     const safeName = broadcast.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()
     const date = new Date().toISOString().split('T')[0]
-    const filename = `leads_${safeName}_${date}.csv`
+    const filterSuffix = interestLevelFilter ? `_interest_${interestLevelFilter}` : ''
+    const filename = `leads_${safeName}_${date}${filterSuffix}.csv`
 
     // Return CSV file
     return new NextResponse(csvContent, {
