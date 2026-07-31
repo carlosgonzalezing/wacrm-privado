@@ -94,11 +94,20 @@ Latest message: ${message_text}
 Conversation history:
 ${historyText || 'No previous messages'}
 
+IMPORTANT: Your summary MUST include specific details from the conversation:
+- Customer's name (if provided)
+- Job title/role (if provided)
+- Phone number (if provided)
+- Business sector/industry (if provided)
+- Specific questions asked
+- Information provided by the customer
+- Any specific requests or needs mentioned
+
 Respond in JSON format with:
 {
   "classification": "interested" | "not_interested" | "needs_info" | "requesting_call",
   "interest_level": "low" | "medium" | "high" | "very_high",
-  "summary": "Brief summary of the conversation and customer's intent",
+  "summary": "Detailed summary including customer name, role, business sector, contact info, and specific details from the conversation",
   "confidence": 0.0-1.0
 }
 
@@ -107,6 +116,10 @@ Classification guidelines:
 - "not_interested": Customer explicitly declines or shows no interest
 - "needs_info": Customer asks questions about the product/service
 - "requesting_call": Customer explicitly asks for a phone call or meeting
+
+Summary examples:
+- "Juan Pérez, gerente de ventas del sector retail, mostró interés en el producto. Proporcionó su teléfono 3001234567 y solicitó información sobre precios. Espera ser contactado por un asesor."
+- "María García, dueña de restaurante, preguntó sobre los planes disponibles. Indicó que su negocio está en el sector de alimentos y necesita más detalles antes de decidir."
 `
 }
 
