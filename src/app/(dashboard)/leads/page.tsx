@@ -81,6 +81,7 @@ export default function LeadsPage() {
           .select('id, name, total_recipients, sent_count, replied_count, leads_count, not_interested_count, needs_info_count')
           .order('created_at', { ascending: false });
 
+        console.log('Broadcasts loaded:', broadcastsData);
         setBroadcasts(broadcastsData ?? []);
 
         // Select the most recent broadcast by default
