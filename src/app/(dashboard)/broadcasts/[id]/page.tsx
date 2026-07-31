@@ -32,6 +32,7 @@ import {
   Download,
   ChevronDown,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -158,6 +159,7 @@ export default function BroadcastDetailPage() {
     'all',
   );
   const [leadFilter, setLeadFilter] = useState<'all' | 'interested' | 'not_interested' | 'needs_info' | 'requesting_call'>('all');
+  const [interestLevelFilter, setInterestLevelFilter] = useState<'all' | 'low' | 'medium' | 'high' | 'very_high'>('all');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -229,11 +231,22 @@ export default function BroadcastDetailPage() {
   );
 
   const filteredLeads = useMemo(
-    () =>
-      leadFilter === 'all'
-        ? campaignLeads
-        : campaignLeads.filter((l) => l.classification === leadFilter),
-    [campaignLeads, leadFilter],
+    () => {
+      let filtered = campaignLeads;
+      
+      // Filter by classification
+      if (leadFilter !== 'all') {
+        filtered = filtered.filter((l) => l.classification === leadFilter);
+      }
+      
+      // Filter by interest level
+      if (interestLevelFilter !== 'all') {
+        filtered = filtered.filter((l) => l.interest_level === interestLevelFilter);
+      }
+      
+      return filtered;
+    },
+    [campaignLeads, leadFilter, interestLevelFilter],
   );
 
   function handleExport() {
@@ -525,26 +538,69 @@ export default function BroadcastDetailPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border text-muted-foreground hover:bg-muted"
+                    />
+                  }
+                >
+                  <Filter className="h-3.5 w-3.5" />
+                  {interestLevelFilter === 'all'
+                    ? 'All Interest Levels'
+                    : interestLevelFilter.toUpperCase()}
+                  <ChevronDown className="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="border-border bg-popover">
+                  <DropdownMenuItem
+                    onClick={() => setInterestLevelFilter('all')}
+                    className={interestLevelFilter === 'all' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    All Interest Levels
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setInterestLevelFilter('low')}
+                    className={interestLevelFilter === 'low' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    Low
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setInterestLevelFilter('medium')}
+                    className={interestLevelFilter === 'medium' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    Medium
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setInterestLevelFilter('high')}
+                    className={interestLevelFilter === 'high' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    High
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setInterestLevelFilter('very_high')}
+                    className={interestLevelFilter === 'very_high' ? 'text-primary' : 'text-popover-foreground'}
+                  >
+                    Very High
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const csv = toCsv([
-                    ['Contact', 'Phone', 'Email', 'Company', 'Classification', 'Interest Level', 'AI Summary', 'Status', 'Assigned Advisor'],
-                    ...filteredLeads.map((l) => [
-                      l.contacts?.name || '',
-                      l.contacts?.phone || '',
-                      l.contacts?.email || '',
-                      l.contacts?.company || '',
-                      l.classification || '',
-                      l.interest_level || '',
-                      `"${(l.ai_summary || '').replace(/"/g, '""')}"`,
-                      l.status || '',
-                      l.profiles?.full_name || ''
-                    ])
-                  ]);
-                  const safeName = broadcast.name.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
-                  downloadBlob(`leads-${safeName}-${broadcastId.slice(0, 8)}.csv`, csv);
+                  // Build export URL with interest level filter
+                  const params = new URLSearchParams();
+                  if (interestLevelFilter !== 'all') {
+                    params.set('interest_level', interestLevelFilter);
+                  }
+                  const url = `/api/v1/campaigns/${broadcastId}/leads/export${
+                    params.toString() ? `?${params.toString()}` : ''
+                  }`;
+                  window.open(url, '_blank');
                 }}
                 disabled={filteredLeads.length === 0}
                 className="border-border text-muted-foreground hover:bg-muted"
@@ -573,6 +629,7 @@ export default function BroadcastDetailPage() {
                     <TableHead className="text-muted-foreground">AI Summary</TableHead>
                     <TableHead className="text-muted-foreground">Status</TableHead>
                     <TableHead className="text-muted-foreground">Assigned Advisor</TableHead>
+                    <TableHead className="text-muted-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -614,6 +671,18 @@ export default function BroadcastDetailPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {lead.profiles?.full_name || 'Unassigned'}
+                      </TableCell>
+                      <TableCell>
+                        {lead.conversation_id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push(`/inbox/${lead.conversation_id}`)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
