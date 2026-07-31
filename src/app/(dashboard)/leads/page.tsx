@@ -57,9 +57,6 @@ interface CampaignLead {
     not_interested_count: number;
     needs_info_count: number;
   };
-  profiles: {
-    full_name: string;
-  };
 }
 
 export default function LeadsPage() {
@@ -110,9 +107,6 @@ export default function LeadsPage() {
               leads_count,
               not_interested_count,
               needs_info_count
-            ),
-            profiles:advisor_id (
-              full_name
             )
           `)
           .order('created_at', { ascending: false });
