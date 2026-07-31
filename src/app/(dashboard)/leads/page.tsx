@@ -46,7 +46,6 @@ interface CampaignLead {
     phone: string;
     email: string;
     company: string;
-    city: string;
   };
   broadcasts: {
     id: string;
@@ -99,8 +98,7 @@ export default function LeadsPage() {
               name,
               phone,
               email,
-              company,
-              city
+              company
             ),
             broadcasts (
               id,
@@ -160,13 +158,12 @@ export default function LeadsPage() {
     const csv = filteredLeads.map((l) => [
       l.contacts?.company || '',
       l.contacts?.name || '',
-      l.contacts?.city || '',
       l.classification || '',
       `"${(l.ai_summary || '').replace(/"/g, '""')}"`,
       l.last_activity_at || l.created_at || ''
     ]);
     
-    const header = ['Empresa', 'Contacto', 'Ciudad', 'Estado', 'Resumen IA', 'Última respuesta'];
+    const header = ['Empresa', 'Contacto', 'Estado', 'Resumen IA', 'Última respuesta'];
     const csvContent = [header.join(','), ...csv.map(row => row.join(','))].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -240,12 +237,14 @@ export default function LeadsPage() {
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold text-foreground">Leads IA</h1>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="min-w-[200px] justify-between">
-                {selectedBroadcastData?.name || 'Seleccionar campaña'}
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" className="min-w-[200px] justify-between">
+                  {selectedBroadcastData?.name || 'Seleccionar campaña'}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              }
+            />
             <DropdownMenuContent className="w-[300px] border-border bg-popover">
               <DropdownMenuItem onClick={() => setSelectedBroadcast('all')}>
                 Todas las campañas
@@ -354,7 +353,6 @@ export default function LeadsPage() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-muted-foreground">Empresa</TableHead>
                   <TableHead className="text-muted-foreground">Contacto</TableHead>
-                  <TableHead className="text-muted-foreground">Ciudad</TableHead>
                   <TableHead className="text-muted-foreground">Estado</TableHead>
                   <TableHead className="text-muted-foreground">Resumen IA</TableHead>
                   <TableHead className="text-muted-foreground">Última respuesta</TableHead>
@@ -369,9 +367,6 @@ export default function LeadsPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {lead.contacts?.name || 'Desconocido'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {lead.contacts?.city || '-'}
                     </TableCell>
                     <TableCell>
                       <span className="flex items-center gap-2 text-sm">
