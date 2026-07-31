@@ -369,8 +369,10 @@ export default function LeadsPage() {
                         <span className="font-medium">{getClassificationLabel(lead.classification)}</span>
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
-                      {lead.ai_summary || '-'}
+                    <TableCell className="max-w-xs text-xs text-muted-foreground">
+                      <div className="line-clamp-2" title={lead.ai_summary || '-'}>
+                        {lead.ai_summary || '-'}
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {getTimeAgo(lead.last_activity_at || lead.created_at)}
