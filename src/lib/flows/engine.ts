@@ -1081,6 +1081,37 @@ async function startNewRun(
           ended_at: new Date().toISOString(),
         })
         .eq("id", activeRun.id);
+    } else {
+      // Same flow and same campaign - don't restart to avoid loops
+      console.log("[flows] Skipping restart - same flow and campaign for contact:", input.contactId);
+      return { consumed: true, outcome: "duplicate_inbound_ignored" };
+    }
+  }
+
+  // If no active run, check the last completed run to allow restart for different campaigns
+  // This handles the case where a flow completed and the user responds to a new campaign
+  if (!activeRun && input.broadcastId) {
+    const { data: lastCompletedRun } = await db
+      .from("flow_runs")
+      .select("*")
+      .eq("account_id", flow.account_id)
+      .eq("contact_id", input.contactId)
+      .eq("flow_id", flow.id)
+      .in("status", ["completed", "handed_off", "timed_out"])
+      .order("ended_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // If the last run was for a different campaign, allow restart
+    // If the last run was for the same campaign, don't restart to avoid loops
+    if (lastCompletedRun && lastCompletedRun.broadcast_id === input.broadcastId) {
+      console.log("[flows] Skipping restart - already completed this campaign for contact:", input.contactId);
+      return { consumed: true, outcome: "duplicate_inbound_ignored" };
+    }
+
+    // If last run was for a different campaign, log and allow restart
+    if (lastCompletedRun && lastCompletedRun.broadcast_id !== input.broadcastId) {
+      console.log("[flows] Restarting for different campaign - previous:", lastCompletedRun.broadcast_id, "new:", input.broadcastId);
     }
   }
 
