@@ -47,7 +47,7 @@ interface FlowRow {
   name: string;
   description: string | null;
   status: "draft" | "active" | "archived";
-  trigger_type: "keyword" | "first_inbound_message" | "manual";
+  trigger_type: "keyword" | "first_inbound_message" | "manual" | "broadcast_reply";
   trigger_config: { keywords?: string[] } | Record<string, unknown>;
   execution_count: number;
   last_executed_at: string | null;
@@ -435,6 +435,9 @@ function describeTrigger(flow: FlowRow, t: ReturnType<typeof useTranslations>): 
   }
   if (flow.trigger_type === "first_inbound_message") {
     return t("triggerFirstInbound");
+  }
+  if (flow.trigger_type === "broadcast_reply") {
+    return t("triggerBroadcastReply");
   }
   return t("triggerManual");
 }

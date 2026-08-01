@@ -37,7 +37,7 @@ export interface ValidationIssue {
 
 interface FlowInput {
   name: string;
-  trigger_type: "keyword" | "first_inbound_message" | "manual";
+  trigger_type: "keyword" | "first_inbound_message" | "manual" | "broadcast_reply";
   trigger_config: Record<string, unknown>;
   entry_node_id: string | null;
 }
@@ -174,6 +174,20 @@ function validateTrigger(
     }
   }
   // first_inbound_message / manual have no config; nothing to validate.
+
+  if (trigger_type === "broadcast_reply") {
+    const ttl = trigger_config.ttl_hours;
+    if (ttl !== undefined) {
+      if (typeof ttl !== "number" || ttl < 1 || ttl > 720) {
+        issues.push({
+          severity: "warning",
+          scope: "trigger",
+          field: "trigger_config.ttl_hours",
+          message: "TTL should be between 1 and 720 hours (30 days).",
+        });
+      }
+    }
+  }
 
   return issues;
 }

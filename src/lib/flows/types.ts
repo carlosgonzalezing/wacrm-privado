@@ -214,10 +214,24 @@ export interface KeywordTriggerConfig {
 // the no-empty-object-type lint rule.
 export type FirstInboundTriggerConfig = Record<string, never>;
 
+/**
+ * Config for the `broadcast_reply` trigger type (migration 039).
+ *
+ * The flow starts when a contact responds to a recent broadcast.
+ * "Recent" is defined by `ttl_hours` — the number of hours after
+ * the broadcast's `sent_at` during which this trigger is eligible.
+ * Default is 72 hours (3 days); covers the typical engagement
+ * window for marketing blasts.
+ */
+export interface BroadcastReplyTriggerConfig {
+  ttl_hours?: number;
+}
+
 export type FlowTriggerConfig =
   | { trigger_type: "keyword"; config: KeywordTriggerConfig }
   | { trigger_type: "first_inbound_message"; config: FirstInboundTriggerConfig }
-  | { trigger_type: "manual"; config: Record<string, never> };
+  | { trigger_type: "manual"; config: Record<string, never> }
+  | { trigger_type: "broadcast_reply"; config: BroadcastReplyTriggerConfig };
 
 // ============================================================
 // DB-row shapes (read by the engine via supabaseAdmin)
@@ -234,8 +248,12 @@ export interface FlowRow {
   name: string;
   description: string | null;
   status: "draft" | "active" | "archived";
-  trigger_type: "keyword" | "first_inbound_message" | "manual";
-  trigger_config: KeywordTriggerConfig | FirstInboundTriggerConfig | Record<string, unknown>;
+  trigger_type: "keyword" | "first_inbound_message" | "manual" | "broadcast_reply";
+  trigger_config:
+    | KeywordTriggerConfig
+    | FirstInboundTriggerConfig
+    | BroadcastReplyTriggerConfig
+    | Record<string, unknown>;
   entry_node_id: string | null;
   fallback_policy: FlowFallbackPolicy;
   execution_count: number;

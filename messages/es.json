@@ -1008,7 +1008,8 @@
       "triggerKeywordNone": "Se activa con palabra clave (ninguna configurada)",
       "triggerKeyword": "Se activa con: {keywords}",
       "triggerFirstInbound": "Se activa con el primer mensaje entrante del contacto",
-      "triggerManual": "Activación manual"
+      "triggerManual": "Activación manual",
+      "triggerBroadcastReply": "Se activa con respuesta a campaña (difusión)"
     },
     "edit": {
       "notFound": "Flujo no encontrado.",
@@ -1040,6 +1041,9 @@
       "triggerKeywordTitle": "Un mensaje contiene una palabra clave",
       "triggerFirstInboundTitle": "Primer mensaje entrante del cliente",
       "triggerManualTitle": "Solo manual (sin activación automática)",
+      "triggerBroadcastReplyTitle": "El cliente responde a una campaña (difusión)",
+      "broadcastTtlLabel": "Ventana de activación (horas)",
+      "broadcastTtlHint": "El flujo se activa si el contacto responde dentro de este período después de enviado el broadcast.",
       "keywordsLabel": "Palabras clave (separadas por comas)",
       "keywordsPlaceholder": "soporte, ayuda, hola",
       "entryNodeTitle": "Nodo de entrada:",

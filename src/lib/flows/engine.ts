@@ -41,6 +41,7 @@ import {
 } from "./meta-send";
 import { decideFallback, resolveFallbackPolicy } from "./fallback";
 import {
+  type BroadcastReplyTriggerConfig,
   type CollectInputNodeConfig,
   type ConditionNodeConfig,
   type DispatchInboundInput,
@@ -308,11 +309,68 @@ async function isDuplicateInbound(
   return (count ?? 0) > 0;
 }
 
+/**
+ * Check if a broadcast recipient row exists and was sent within the
+ * TTL window. Used by the `broadcast_reply` trigger to decide
+ * eligibility — the flow only starts if the contact's broadcast was
+ * recent enough (default 72h).
+ */
+async function isBroadcastReplyRecent(
+  db: AdminClient,
+  contactId: string,
+  broadcastId: string,
+  ttlHours: number,
+): Promise<boolean> {
+  const { data, error } = await db
+    .from("broadcast_recipients")
+    .select("sent_at, created_at")
+    .eq("contact_id", contactId)
+    .eq("broadcast_id", broadcastId)
+    .maybeSingle();
+  if (error || !data) return false;
+  const refDate = (data as { sent_at: string | null; created_at: string }).sent_at
+    ?? (data as { created_at: string }).created_at;
+  const ageMs = Date.now() - new Date(refDate).getTime();
+  return ageMs <= ttlHours * 60 * 60 * 1000;
+}
+
+/**
+ * Find a `broadcast_reply` flow for this account whose TTL window
+ * still covers the given broadcast. Returns the first match (oldest
+ * flow wins, same ordering convention as `findEntryFlow`).
+ */
+async function findBroadcastReplyFlow(
+  db: AdminClient,
+  accountId: string,
+  contactId: string,
+  broadcastId: string,
+): Promise<FlowRow | null> {
+  const { data: flows, error } = await db
+    .from("flows")
+    .select("*")
+    .eq("account_id", accountId)
+    .eq("status", "active")
+    .eq("trigger_type", "broadcast_reply")
+    .order("created_at", { ascending: true });
+  if (error || !flows?.length) return null;
+
+  for (const flow of flows as FlowRow[]) {
+    const cfg = flow.trigger_config as unknown as BroadcastReplyTriggerConfig;
+    const ttlHours = cfg.ttl_hours ?? 72;
+    if (await isBroadcastReplyRecent(db, contactId, broadcastId, ttlHours)) {
+      return flow;
+    }
+  }
+  return null;
+}
+
 async function findEntryFlow(
   db: AdminClient,
   accountId: string,
+  contactId: string,
   message: ParsedInbound,
   isFirstInbound: boolean,
+  broadcastId?: string | null,
 ): Promise<FlowRow | null> {
   // Only text messages can match an entry trigger. Interactive replies
   // are responses to existing prompts; they never start a new flow.
@@ -340,6 +398,16 @@ async function findEntryFlow(
       }
     } else if (flow.trigger_type === "first_inbound_message" && isFirstInbound) {
       return flow;
+    } else if (flow.trigger_type === "broadcast_reply" && broadcastId) {
+      const cfg = flow.trigger_config as unknown as BroadcastReplyTriggerConfig;
+      const ttlHours = cfg.ttl_hours ?? 72;
+      const isRecent = await isBroadcastReplyRecent(
+        db,
+        contactId,
+        broadcastId,
+        ttlHours,
+      );
+      if (isRecent) return flow;
     }
     // 'manual' triggers do not auto-start from inbound messages.
   }
@@ -837,9 +905,42 @@ export async function dispatchInboundToFlows(
       input.contactId,
     );
 
-    // Idempotency — only matters if there's already a run for this
-    // contact. For new runs, the partial unique index catches duplicate
-    // starts at INSERT time.
+    // ── New campaign detection ──────────────────────────────
+    // When a contact with an active flow run replies to a DIFFERENT
+    // broadcast than the one that started the current run, we treat
+    // it as a new campaign response: complete the old run and start
+    // a fresh one from the broadcast_reply flow (if any matches).
+    //
+    // This is the key mechanism that enables per-campaign flow
+    // restarts — the same contact can go through the same flow
+    // multiple times, once per campaign.
+    // ─────────────────────────────────────────────────────────
+    if (
+      activeRun &&
+      input.broadcastId &&
+      activeRun.broadcast_id !== input.broadcastId
+    ) {
+      const broadcastFlow = await findBroadcastReplyFlow(
+        db,
+        input.accountId,
+        input.contactId,
+        input.broadcastId,
+      );
+      if (broadcastFlow && broadcastFlow.entry_node_id) {
+        // Complete the previous run — it belongs to a stale campaign.
+        await endRun(
+          db,
+          activeRun.id,
+          "completed",
+          "superseded_by_new_campaign",
+        );
+        const nodes = await loadAllNodes(db, broadcastFlow.id);
+        return startNewRun(db, broadcastFlow, input, nodes);
+      }
+      // No broadcast_reply flow matched the TTL → fall through and
+      // advance the existing run as a normal reply.
+    }
+
     if (activeRun) {
       const dupe = await isDuplicateInbound(
         db,
@@ -864,8 +965,10 @@ export async function dispatchInboundToFlows(
     const flow = await findEntryFlow(
       db,
       input.accountId,
+      input.contactId,
       input.message,
       input.isFirstInboundMessage,
+      input.broadcastId,
     );
     if (!flow || !flow.entry_node_id) {
       return { consumed: false, outcome: "no_match" };

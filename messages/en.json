@@ -1008,7 +1008,8 @@
       "triggerKeywordNone": "Triggers on keyword (none set)",
       "triggerKeyword": "Triggers on: {keywords}",
       "triggerFirstInbound": "Triggers on a contact's first-ever inbound message",
-      "triggerManual": "Manual trigger"
+      "triggerManual": "Manual trigger",
+      "triggerBroadcastReply": "Triggers on campaign (broadcast) reply"
     },
     "edit": {
       "notFound": "Flow not found.",
@@ -1040,6 +1041,9 @@
       "triggerKeywordTitle": "A message contains a keyword",
       "triggerFirstInboundTitle": "Customer's first ever inbound message",
       "triggerManualTitle": "Manual only (no auto-trigger)",
+      "triggerBroadcastReplyTitle": "Customer replies to a campaign (broadcast)",
+      "broadcastTtlLabel": "Activation window (hours)",
+      "broadcastTtlHint": "The flow starts if the contact replies within this period after the broadcast was sent.",
       "keywordsLabel": "Keywords (comma-separated)",
       "keywordsPlaceholder": "support, help, hi",
       "entryNodeTitle": "Entry node:",

@@ -547,3 +547,61 @@ describe("reachableFromEntry", () => {
     expect(set).toEqual(new Set(["a", "b"]));
   });
 });
+
+// ============================================================
+// broadcast_reply trigger validation
+// ============================================================
+
+describe("validateFlowForActivation — broadcast_reply trigger", () => {
+  const brFlow = {
+    name: "Campaign Responder",
+    trigger_type: "broadcast_reply" as const,
+    trigger_config: {},
+    entry_node_id: "start",
+  };
+
+  it("produces no issues with default TTL (unset = 72h)", () => {
+    expect(validateFlowForActivation(brFlow, validNodes)).toEqual([]);
+  });
+
+  it("accepts a valid explicit ttl_hours", () => {
+    const flow = {
+      ...brFlow,
+      trigger_config: { ttl_hours: 168 },
+    };
+    expect(validateFlowForActivation(flow, validNodes)).toEqual([]);
+  });
+
+  it("warns when ttl_hours is below 1", () => {
+    const flow = {
+      ...brFlow,
+      trigger_config: { ttl_hours: 0 },
+    };
+    const issues = validateFlowForActivation(flow, validNodes);
+    expect(issues.some(
+      (i) => i.field === "trigger_config.ttl_hours" && i.severity === "warning",
+    )).toBe(true);
+  });
+
+  it("warns when ttl_hours exceeds 720", () => {
+    const flow = {
+      ...brFlow,
+      trigger_config: { ttl_hours: 999 },
+    };
+    const issues = validateFlowForActivation(flow, validNodes);
+    expect(issues.some(
+      (i) => i.field === "trigger_config.ttl_hours" && i.severity === "warning",
+    )).toBe(true);
+  });
+
+  it("accepts ttl_hours at the upper boundary (720)", () => {
+    const flow = {
+      ...brFlow,
+      trigger_config: { ttl_hours: 720 },
+    };
+    const issues = validateFlowForActivation(flow, validNodes);
+    expect(issues.some(
+      (i) => i.field === "trigger_config.ttl_hours",
+    )).toBe(false);
+  });
+});

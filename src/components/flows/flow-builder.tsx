@@ -287,7 +287,13 @@ function TriggerPanel({
                 ...s,
                 trigger_type: v as BuilderState['trigger_type'],
                 trigger_config:
-                  v === 'keyword' ? { keywords: [] } : v === 'manual' ? {} : {},
+                  v === 'keyword'
+                    ? { keywords: [] }
+                    : v === 'broadcast_reply'
+                      ? { ttl_hours: 72 }
+                      : v === 'manual'
+                        ? {}
+                        : {},
               }))
             }
           >
@@ -300,6 +306,9 @@ function TriggerPanel({
               </SelectItem>
               <SelectItem value="first_inbound_message">
                 {t('triggerFirstInboundTitle')}
+              </SelectItem>
+              <SelectItem value="broadcast_reply">
+                {t('triggerBroadcastReplyTitle')}
               </SelectItem>
               <SelectItem value="manual">
                 {t('triggerManualTitle')}
@@ -326,6 +335,33 @@ function TriggerPanel({
               }
               t={t}
             />
+          </div>
+        )}
+        {state.trigger_type === 'broadcast_reply' && (
+          <div>
+            <label className="text-muted-foreground mb-1 block text-xs">
+              {t('broadcastTtlLabel')}
+            </label>
+            <Input
+              type="number"
+              min={1}
+              max={720}
+              value={
+                typeof state.trigger_config.ttl_hours === 'number'
+                  ? state.trigger_config.ttl_hours
+                  : 72
+              }
+              onChange={(e) =>
+                setState((s) => ({
+                  ...s,
+                  trigger_config: { ttl_hours: Number(e.target.value) || 72 },
+                }))
+              }
+              className="bg-muted"
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              {t('broadcastTtlHint')}
+            </p>
           </div>
         )}
       </div>
