@@ -382,7 +382,7 @@ export default function LeadsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/inbox/${lead.conversation_id}`)}
+                          onClick={() => router.push(`/inbox?c=${lead.conversation_id}`)}
                           className="h-7 w-7 p-0"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
