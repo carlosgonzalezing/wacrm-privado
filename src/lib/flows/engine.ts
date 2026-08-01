@@ -1054,6 +1054,28 @@ async function startNewRun(
   input: DispatchInboundInput,
   nodes: Map<string, FlowNodeRow>,
 ): Promise<DispatchInboundResult> {
+  // Check if there's an active run for this contact
+  const { data: activeRun } = await db
+    .from("flow_runs")
+    .select("*")
+    .eq("account_id", flow.account_id)
+    .eq("contact_id", input.contactId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  // If there's an active run from a different flow, complete it first
+  // This allows contacts to respond to multiple campaigns in a day
+  if (activeRun && activeRun.flow_id !== flow.id) {
+    console.log("[flows] Completing previous active run for contact:", input.contactId);
+    await db
+      .from("flow_runs")
+      .update({
+        status: "completed",
+        ended_at: new Date().toISOString(),
+      })
+      .eq("id", activeRun.id);
+  }
+
   // INSERT — partial unique index `idx_one_active_run_per_contact`
   // catches concurrent inserts with 23505. We catch and return as
   // consumed:true (the parallel webhook handles it).
