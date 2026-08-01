@@ -814,6 +814,20 @@ async function processMessage(
   // Extract inbound text for campaign lead creation
   const inboundText = contentText ?? message.text?.body ?? ''
 
+  // Find the most recent broadcast this contact was a recipient of
+  // This is needed for flow restart logic with multiple campaigns
+  const { data: broadcastRecipient } = await supabaseAdmin()
+    .from('broadcast_recipients')
+    .select('broadcast_id')
+    .eq('contact_id', contactRecord.id)
+    .eq('broadcasts.account_id', accountId)
+    .in('status', ['sent', 'delivered', 'read', 'replied'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle() as { data: { broadcast_id: string } | null }
+
+  const broadcastId = broadcastRecipient?.broadcast_id || null
+
   // Create or update campaign lead if this is a response to a broadcast
   await handleCampaignLeadCreation(
     accountId,
@@ -847,6 +861,7 @@ async function processMessage(
     userId: configOwnerUserId,
     contactId: contactRecord.id,
     conversationId: conversation.id,
+    broadcastId,
     message:
       interactiveReplyId
         ? {

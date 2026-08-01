@@ -1063,17 +1063,25 @@ async function startNewRun(
     .eq("status", "active")
     .maybeSingle();
 
-  // If there's an active run from a different flow, complete it first
-  // This allows contacts to respond to multiple campaigns in a day
-  if (activeRun && activeRun.flow_id !== flow.id) {
-    console.log("[flows] Completing previous active run for contact:", input.contactId);
-    await db
-      .from("flow_runs")
-      .update({
-        status: "completed",
-        ended_at: new Date().toISOString(),
-      })
-      .eq("id", activeRun.id);
+  // If there's an active run, check if we should restart it
+  // Restart if:
+  // 1. Different flow OR
+  // 2. Same flow but different campaign (different broadcast_id)
+  if (activeRun) {
+    const shouldRestart = activeRun.flow_id !== flow.id ||
+      (input.broadcastId && activeRun.broadcast_id !== input.broadcastId);
+
+    if (shouldRestart) {
+      console.log("[flows] Completing previous active run for contact:", input.contactId,
+        "- reason:", activeRun.flow_id !== flow.id ? "different flow" : "different campaign");
+      await db
+        .from("flow_runs")
+        .update({
+          status: "completed",
+          ended_at: new Date().toISOString(),
+        })
+        .eq("id", activeRun.id);
+    }
   }
 
   // INSERT — partial unique index `idx_one_active_run_per_contact`
@@ -1095,6 +1103,7 @@ async function startNewRun(
       conversation_id: input.conversationId,
       status: "active",
       current_node_key: flow.entry_node_id,
+      broadcast_id: input.broadcastId,
     })
     .select("*")
     .maybeSingle();

@@ -279,6 +279,8 @@ export interface FlowRunRow {
   last_advanced_at: string;
   ended_at: string | null;
   end_reason: string | null;
+  /** Optional broadcast_id when the run is triggered by a campaign response. */
+  broadcast_id: string | null;
 }
 
 // ============================================================
@@ -338,6 +340,9 @@ export interface DispatchInboundInput {
   userId: string;
   contactId: string;
   conversationId: string;
+  /** Optional broadcast_id when the message is a response to a campaign.
+   *  Used to distinguish between different campaigns using the same flow. */
+  broadcastId?: string | null;
   message: ParsedInbound;
 }
 
