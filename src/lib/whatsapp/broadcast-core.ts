@@ -19,6 +19,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { sendTemplateMessage } from '@/lib/whatsapp/meta-api';
+import { persistBroadcastMessage } from '@/lib/whatsapp/persist-broadcast-message';
 import { decrypt } from '@/lib/whatsapp/encryption';
 import {
   sanitizePhoneForMeta,
@@ -64,6 +65,8 @@ interface PlannedRecipient {
 
 export interface BroadcastPlan {
   broadcastId: string;
+  accountId: string;
+  auditUserId: string;
   templateName: string;
   templateLanguage: string;
   phoneNumberId: string;
@@ -236,6 +239,8 @@ export async function createBroadcast(
 
   return {
     broadcastId: broadcast.id,
+    accountId,
+    auditUserId,
     templateName,
     templateLanguage,
     phoneNumberId: config.phone_number_id,
@@ -303,6 +308,15 @@ export async function deliverBroadcast(
           error_message: null,
         })
         .eq('id', recipient.recipientRowId);
+
+      await persistBroadcastMessage(
+        db,
+        plan.accountId,
+        plan.auditUserId,
+        recipient.phone,
+        plan.templateName,
+        sentMessageId,
+      );
     } else {
       await db
         .from('broadcast_recipients')

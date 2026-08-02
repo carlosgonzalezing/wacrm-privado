@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
+import { persistBroadcastMessage } from '@/lib/whatsapp/persist-broadcast-message'
 import type { SendTimeParams } from '@/lib/whatsapp/template-send-builder'
 import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard'
 import {
@@ -232,10 +233,22 @@ export async function POST(request: Request) {
           whatsapp_message_id: sentMessageId,
         })
         sentCount++
+
+        // Persist the outbound template message so it appears in the
+        // inbox conversation history. Best-effort — the broadcast already
+        // succeeded at the Meta level.
+        await persistBroadcastMessage(
+          supabase,
+          accountId,
+          user.id,
+          sanitized,
+          template_name,
+          sentMessageId,
+        )
       } else {
         console.error(
           `Failed to send broadcast to ${recipient.phone}:`,
-          lastError
+          lastError,
         )
         results.push({
           phone: recipient.phone,
