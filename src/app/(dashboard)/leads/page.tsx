@@ -149,6 +149,7 @@ export default function LeadsPage() {
     const csv = filteredLeads.map((l) => [
       l.contacts?.company || '',
       l.contacts?.name || '',
+      l.contacts?.phone || '',
       l.classification || '',
       `"${(l.ai_summary || '').replace(/"/g, '""')}"`,
       l.last_activity_at || l.created_at || '',
@@ -157,6 +158,7 @@ export default function LeadsPage() {
     const header = [
       'Empresa',
       'Contacto',
+      'Teléfono',
       'Estado',
       'Resumen IA',
       'Última respuesta',
@@ -389,6 +391,9 @@ export default function LeadsPage() {
                     Contacto
                   </TableHead>
                   <TableHead className="text-muted-foreground">
+                    Teléfono
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
                     Estado
                   </TableHead>
                   <TableHead className="text-muted-foreground">
@@ -414,6 +419,9 @@ export default function LeadsPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {lead.contacts?.name || 'Desconocido'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {lead.contacts?.phone || '-'}
                     </TableCell>
                     <TableCell>
                       <span className="flex items-center gap-2 text-sm">
