@@ -818,7 +818,7 @@ async function processMessage(
   // This is needed for flow restart logic with multiple campaigns
   const { data: broadcastRecipient } = await supabaseAdmin()
     .from('broadcast_recipients')
-    .select('broadcast_id')
+    .select('broadcast_id, broadcasts!inner(account_id)')
     .eq('contact_id', contactRecord.id)
     .eq('broadcasts.account_id', accountId)
     .in('status', ['sent', 'delivered', 'read', 'replied'])
