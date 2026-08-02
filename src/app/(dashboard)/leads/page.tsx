@@ -30,42 +30,30 @@ import {
   Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  LeadDetailView,
+  type CampaignLead,
+} from '@/components/leads/lead-detail-view';
 
-interface CampaignLead {
+interface BroadcastSummary {
   id: string;
-  classification: string;
-  interest_level: string;
-  ai_summary: string;
-  status: string;
-  conversation_id: string;
-  created_at: string;
-  last_activity_at: string;
-  contacts: {
-    id: string;
-    name: string;
-    phone: string;
-    email: string;
-    company: string;
-  };
-  broadcasts: {
-    id: string;
-    name: string;
-    total_recipients: number;
-    sent_count: number;
-    replied_count: number;
-    leads_count: number;
-    not_interested_count: number;
-    needs_info_count: number;
-  };
+  name: string;
+  total_recipients: number;
+  sent_count: number;
+  replied_count: number;
+  leads_count: number;
+  not_interested_count: number;
+  needs_info_count: number;
 }
 
 export default function LeadsPage() {
   const router = useRouter();
   const [leads, setLeads] = useState<CampaignLead[]>([]);
-  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastSummary[]>([]);
   const [selectedBroadcast, setSelectedBroadcast] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailLead, setDetailLead] = useState<CampaignLead | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -75,7 +63,9 @@ export default function LeadsPage() {
         // Fetch all broadcasts with stats
         const { data: broadcastsData } = await supabase
           .from('broadcasts')
-          .select('id, name, total_recipients, sent_count, replied_count, leads_count, not_interested_count, needs_info_count')
+          .select(
+            'id, name, total_recipients, sent_count, replied_count, leads_count, not_interested_count, needs_info_count'
+          )
           .order('created_at', { ascending: false });
 
         console.log('Broadcasts loaded:', broadcastsData);
@@ -89,7 +79,8 @@ export default function LeadsPage() {
         // Fetch all campaign leads with contact and broadcast details
         const { data: leadsData, error: leadsError } = await supabase
           .from('campaign_leads')
-          .select(`
+          .select(
+            `
             *,
             contacts (
               id,
@@ -108,7 +99,8 @@ export default function LeadsPage() {
               not_interested_count,
               needs_info_count
             )
-          `)
+          `
+          )
           .order('created_at', { ascending: false });
 
         if (leadsError) {
@@ -141,12 +133,16 @@ export default function LeadsPage() {
         total_recipients: leads.length,
         sent_count: leads.length,
         replied_count: leads.length,
-        leads_count: leads.filter(l => l.classification === 'interested').length,
-        not_interested_count: leads.filter(l => l.classification === 'not_interested').length,
-        needs_info_count: leads.filter(l => l.classification === 'needs_info').length,
+        leads_count: leads.filter((l) => l.classification === 'interested')
+          .length,
+        not_interested_count: leads.filter(
+          (l) => l.classification === 'not_interested'
+        ).length,
+        needs_info_count: leads.filter((l) => l.classification === 'needs_info')
+          .length,
       };
     }
-    return broadcasts.find(b => b.id === selectedBroadcast);
+    return broadcasts.find((b) => b.id === selectedBroadcast);
   }, [selectedBroadcast, broadcasts, leads]);
 
   function handleExport() {
@@ -155,12 +151,21 @@ export default function LeadsPage() {
       l.contacts?.name || '',
       l.classification || '',
       `"${(l.ai_summary || '').replace(/"/g, '""')}"`,
-      l.last_activity_at || l.created_at || ''
+      l.last_activity_at || l.created_at || '',
     ]);
-    
-    const header = ['Empresa', 'Contacto', 'Estado', 'Resumen IA', 'Última respuesta'];
-    const csvContent = [header.join(','), ...csv.map(row => row.join(','))].join('\n');
-    
+
+    const header = [
+      'Empresa',
+      'Contacto',
+      'Estado',
+      'Resumen IA',
+      'Última respuesta',
+    ];
+    const csvContent = [
+      header.join(','),
+      ...csv.map((row) => row.join(',')),
+    ].join('\n');
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -170,27 +175,37 @@ export default function LeadsPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast.success(`Exported ${filteredLeads.length} leads`);
   }
 
   function getClassificationEmoji(classification: string) {
     switch (classification) {
-      case 'interested': return '🟢';
-      case 'not_interested': return '🔴';
-      case 'needs_info': return '🟡';
-      case 'requesting_call': return '🟣';
-      default: return '⚪';
+      case 'interested':
+        return '🟢';
+      case 'not_interested':
+        return '🔴';
+      case 'needs_info':
+        return '🟡';
+      case 'requesting_call':
+        return '🟣';
+      default:
+        return '⚪';
     }
   }
 
   function getClassificationLabel(classification: string) {
     switch (classification) {
-      case 'interested': return 'Interesado';
-      case 'not_interested': return 'No interesado';
-      case 'needs_info': return 'Requiere asesor';
-      case 'requesting_call': return 'Solicita llamada';
-      default: return 'Pendiente';
+      case 'interested':
+        return 'Interesado';
+      case 'not_interested':
+        return 'No interesado';
+      case 'needs_info':
+        return 'Requiere asesor';
+      case 'requesting_call':
+        return 'Solicita llamada';
+      default:
+        return 'Pendiente';
     }
   }
 
@@ -212,7 +227,7 @@ export default function LeadsPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="text-primary h-6 w-6 animate-spin" />
       </div>
     );
   }
@@ -230,22 +245,28 @@ export default function LeadsPage() {
       {/* Header with Campaign Selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-foreground">Leads IA</h1>
+          <h1 className="text-foreground text-2xl font-bold">Leads IA</h1>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button variant="outline" className="min-w-[200px] justify-between">
+                <Button
+                  variant="outline"
+                  className="min-w-[200px] justify-between"
+                >
                   {selectedBroadcastData?.name || 'Seleccionar campaña'}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               }
             />
-            <DropdownMenuContent className="w-[300px] border-border bg-popover">
+            <DropdownMenuContent className="border-border bg-popover w-[300px]">
               <DropdownMenuItem onClick={() => setSelectedBroadcast('all')}>
                 Todas las campañas
               </DropdownMenuItem>
               {broadcasts.map((b) => (
-                <DropdownMenuItem key={b.id} onClick={() => setSelectedBroadcast(b.id)}>
+                <DropdownMenuItem
+                  key={b.id}
+                  onClick={() => setSelectedBroadcast(b.id)}
+                >
                   {b.name}
                 </DropdownMenuItem>
               ))}
@@ -266,23 +287,27 @@ export default function LeadsPage() {
 
       {/* Campaign Stats */}
       {selectedBroadcastData && (
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="border-border bg-card rounded-xl border p-6">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-foreground">
+            <h2 className="text-foreground text-lg font-semibold">
               {selectedBroadcastData.name}
             </h2>
-            <p className="text-sm text-muted-foreground">Información general de la campaña</p>
+            <p className="text-muted-foreground text-sm">
+              Información general de la campaña
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-lg">
                 <Send className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {selectedBroadcastData.sent_count || selectedBroadcastData.total_recipients || 0}
+                <p className="text-foreground text-2xl font-bold">
+                  {selectedBroadcastData.sent_count ||
+                    selectedBroadcastData.total_recipients ||
+                    0}
                 </p>
-                <p className="text-xs text-muted-foreground">Enviados</p>
+                <p className="text-muted-foreground text-xs">Enviados</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -290,10 +315,10 @@ export default function LeadsPage() {
                 <CheckCircle className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-foreground text-2xl font-bold">
                   {selectedBroadcastData.replied_count || filteredLeads.length}
                 </p>
-                <p className="text-xs text-muted-foreground">Respondieron</p>
+                <p className="text-muted-foreground text-xs">Respondieron</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -301,10 +326,13 @@ export default function LeadsPage() {
                 <Users className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {selectedBroadcastData.leads_count || filteredLeads.filter(l => l.classification === 'interested').length}
+                <p className="text-foreground text-2xl font-bold">
+                  {selectedBroadcastData.leads_count ||
+                    filteredLeads.filter(
+                      (l) => l.classification === 'interested'
+                    ).length}
                 </p>
-                <p className="text-xs text-muted-foreground">Interesados</p>
+                <p className="text-muted-foreground text-xs">Interesados</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -312,10 +340,13 @@ export default function LeadsPage() {
                 <XCircle className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {selectedBroadcastData.not_interested_count || filteredLeads.filter(l => l.classification === 'not_interested').length}
+                <p className="text-foreground text-2xl font-bold">
+                  {selectedBroadcastData.not_interested_count ||
+                    filteredLeads.filter(
+                      (l) => l.classification === 'not_interested'
+                    ).length}
                 </p>
-                <p className="text-xs text-muted-foreground">No interesados</p>
+                <p className="text-muted-foreground text-xs">No interesados</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -323,10 +354,13 @@ export default function LeadsPage() {
                 <Clock className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {selectedBroadcastData.needs_info_count || filteredLeads.filter(l => l.classification === 'needs_info').length}
+                <p className="text-foreground text-2xl font-bold">
+                  {selectedBroadcastData.needs_info_count ||
+                    filteredLeads.filter(
+                      (l) => l.classification === 'needs_info'
+                    ).length}
                 </p>
-                <p className="text-xs text-muted-foreground">Pendientes</p>
+                <p className="text-muted-foreground text-xs">Pendientes</p>
               </div>
             </div>
           </div>
@@ -334,11 +368,13 @@ export default function LeadsPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border-border bg-card rounded-xl border">
         {filteredLeads.length === 0 ? (
           <div className="flex h-32 items-center justify-center">
-            <p className="text-sm text-muted-foreground">
-              {leads.length === 0 ? 'No hay leads encontrados' : 'No hay leads que coincidan con los filtros'}
+            <p className="text-muted-foreground text-sm">
+              {leads.length === 0
+                ? 'No hay leads encontrados'
+                : 'No hay leads que coincidan con los filtros'}
             </p>
           </div>
         ) : (
@@ -346,18 +382,34 @@ export default function LeadsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground">Empresa</TableHead>
-                  <TableHead className="text-muted-foreground">Contacto</TableHead>
-                  <TableHead className="text-muted-foreground">Estado</TableHead>
-                  <TableHead className="text-muted-foreground">Resumen IA</TableHead>
-                  <TableHead className="text-muted-foreground">Última respuesta</TableHead>
-                  <TableHead className="text-muted-foreground">Acciones</TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Empresa
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Contacto
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Estado
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Resumen IA
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Última respuesta
+                  </TableHead>
+                  <TableHead className="text-muted-foreground">
+                    Acciones
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLeads.map((lead) => (
-                  <TableRow key={lead.id} className="border-border">
-                    <TableCell className="font-medium text-foreground">
+                  <TableRow
+                    key={lead.id}
+                    className="border-border hover:bg-muted/50 cursor-pointer"
+                    onClick={() => setDetailLead(lead)}
+                  >
+                    <TableCell className="text-foreground font-medium">
                       {lead.contacts?.company || '-'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
@@ -365,16 +417,23 @@ export default function LeadsPage() {
                     </TableCell>
                     <TableCell>
                       <span className="flex items-center gap-2 text-sm">
-                        <span>{getClassificationEmoji(lead.classification)}</span>
-                        <span className="font-medium">{getClassificationLabel(lead.classification)}</span>
+                        <span>
+                          {getClassificationEmoji(lead.classification)}
+                        </span>
+                        <span className="font-medium">
+                          {getClassificationLabel(lead.classification)}
+                        </span>
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-xs text-xs text-muted-foreground">
-                      <div className="line-clamp-2" title={lead.ai_summary || '-'}>
+                    <TableCell className="text-muted-foreground max-w-xs text-xs">
+                      <div
+                        className="line-clamp-2"
+                        title={lead.ai_summary || '-'}
+                      >
                         {lead.ai_summary || '-'}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground text-xs">
                       {getTimeAgo(lead.last_activity_at || lead.created_at)}
                     </TableCell>
                     <TableCell>
@@ -382,7 +441,10 @@ export default function LeadsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/inbox?c=${lead.conversation_id}`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/inbox?c=${lead.conversation_id}`);
+                          }}
                           className="h-7 w-7 p-0"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
@@ -396,6 +458,15 @@ export default function LeadsPage() {
           </div>
         )}
       </div>
+
+      {/* Lead Detail Sheet */}
+      <LeadDetailView
+        open={!!detailLead}
+        onOpenChange={(open) => {
+          if (!open) setDetailLead(null);
+        }}
+        lead={detailLead}
+      />
     </div>
   );
 }
