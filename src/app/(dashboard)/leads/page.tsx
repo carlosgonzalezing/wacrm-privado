@@ -34,6 +34,8 @@ import {
   LeadDetailView,
   type CampaignLead,
 } from '@/components/leads/lead-detail-view';
+import { exportLeadsToExcel } from '@/lib/leads/export-leads';
+import { getClassificationLabel } from '@/lib/leads/format';
 
 interface BroadcastSummary {
   id: string;
@@ -145,40 +147,16 @@ export default function LeadsPage() {
     return broadcasts.find((b) => b.id === selectedBroadcast);
   }, [selectedBroadcast, broadcasts, leads]);
 
-  function handleExport() {
-    const csv = filteredLeads.map((l) => [
-      l.contacts?.company || '',
-      l.contacts?.name || '',
-      l.contacts?.phone || '',
-      l.classification || '',
-      `"${(l.ai_summary || '').replace(/"/g, '""')}"`,
-      l.last_activity_at || l.created_at || '',
-    ]);
-
-    const header = [
-      'Empresa',
-      'Contacto',
-      'Teléfono',
-      'Estado',
-      'Resumen IA',
-      'Última respuesta',
-    ];
-    const csvContent = [
-      header.join(','),
-      ...csv.map((row) => row.join(',')),
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast.success(`Exported ${filteredLeads.length} leads`);
+  async function handleExport() {
+    try {
+      await exportLeadsToExcel(filteredLeads, {
+        broadcastName: selectedBroadcastData?.name,
+      });
+      toast.success(`Exportados ${filteredLeads.length} leads`);
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('No se pudo exportar el archivo');
+    }
   }
 
   function getClassificationEmoji(classification: string) {
@@ -193,21 +171,6 @@ export default function LeadsPage() {
         return '🟣';
       default:
         return '⚪';
-    }
-  }
-
-  function getClassificationLabel(classification: string) {
-    switch (classification) {
-      case 'interested':
-        return 'Interesado';
-      case 'not_interested':
-        return 'No interesado';
-      case 'needs_info':
-        return 'Requiere asesor';
-      case 'requesting_call':
-        return 'Solicita llamada';
-      default:
-        return 'Pendiente';
     }
   }
 
