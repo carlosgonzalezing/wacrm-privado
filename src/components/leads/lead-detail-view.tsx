@@ -202,12 +202,50 @@ export function LeadDetailView({
     (async () => {
       setLoadingMessages(true);
       const supabase = createClient();
-      const { data } = await supabase
+
+      // Scope the conversation preview to the campaign that generated
+      // this lead: starting at this broadcast's sent_at for the
+      // contact, ending at the next broadcast's sent_at (or open-ended
+      // when there's no later campaign). Falls back to the unfiltered
+      // history when the recipient row can't be resolved (orphaned
+      // leads / older data) so the preview still shows something.
+      let windowStart: string | null = null;
+      let windowEnd: string | null = null;
+      const broadcastId = lead.broadcasts?.id;
+      const contactId = lead.contacts?.id;
+      if (broadcastId && contactId) {
+        const { data: thisRecipient } = await supabase
+          .from('broadcast_recipients')
+          .select('sent_at')
+          .eq('broadcast_id', broadcastId)
+          .eq('contact_id', contactId)
+          .order('sent_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        windowStart = thisRecipient?.sent_at ?? null;
+        if (windowStart) {
+          const { data: nextRecipient } = await supabase
+            .from('broadcast_recipients')
+            .select('sent_at')
+            .eq('contact_id', contactId)
+            .gt('sent_at', windowStart)
+            .order('sent_at', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          windowEnd = nextRecipient?.sent_at ?? null;
+        }
+      }
+
+      let query = supabase
         .from('messages')
         .select('id, sender_type, content_type, content_text, created_at')
         .eq('conversation_id', lead.conversation_id)
         .order('created_at', { ascending: false })
         .limit(30);
+      if (windowStart) query = query.gte('created_at', windowStart);
+      if (windowEnd) query = query.lt('created_at', windowEnd);
+      const { data } = await query;
+
       if (!cancelled) {
         setMessages((data ?? []).reverse() as ConversationMessage[]);
         setLoadingMessages(false);
@@ -216,7 +254,7 @@ export function LeadDetailView({
     return () => {
       cancelled = true;
     };
-  }, [open, lead?.conversation_id]);
+  }, [open, lead?.conversation_id, lead?.broadcasts?.id, lead?.contacts?.id]);
 
   async function copyPhone() {
     if (!lead?.contacts?.phone) return;
