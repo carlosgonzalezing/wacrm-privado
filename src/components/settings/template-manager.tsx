@@ -12,6 +12,7 @@ import {
   Pencil,
   RotateCcw,
   Upload,
+  Paperclip,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -150,6 +151,8 @@ export function TemplateManager() {
   // submit route turns that into a Meta Resumable-Upload handle.
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const headerFileRef = useRef<HTMLInputElement>(null);
+  const headerVideoFileRef = useRef<HTMLInputElement>(null);
+  const headerDocumentFileRef = useRef<HTMLInputElement>(null);
 
   // Body variable indices — `[1, 2, 3]` for "{{1}} {{2}} {{3}}". We
   // re-run the extractor on every render to keep the sample-value rows
@@ -476,6 +479,53 @@ export function TemplateManager() {
       toast.success(t('toastUploadSuccess'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('toastUploadFailed'));
+    } finally {
+      setUploadingHeader(false);
+    }
+  }
+
+  async function handleHeaderVideoFile(file: File) {
+    if (!['video/mp4', 'video/3gpp'].includes(file.type)) {
+      toast.error('Invalid video format. Only MP4 and 3GP are supported.');
+      return;
+    }
+    if (file.size > MEDIA_MAX_BYTES_BY_KIND.video) {
+      toast.error(
+        `Video too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 16 MB.`,
+      );
+      return;
+    }
+    setUploadingHeader(true);
+    try {
+      const { publicUrl } = await uploadAccountMedia('chat-media', file);
+      setForm((f) => ({ ...f, header_media_url: publicUrl }));
+      toast.success('Video uploaded successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Video upload failed');
+    } finally {
+      setUploadingHeader(false);
+    }
+  }
+
+  async function handleHeaderDocumentFile(file: File) {
+    const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid document format. Only PDF, TXT, DOC, and DOCX are supported.');
+      return;
+    }
+    if (file.size > MEDIA_MAX_BYTES_BY_KIND.document) {
+      toast.error(
+        `Document too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 16 MB.`,
+      );
+      return;
+    }
+    setUploadingHeader(true);
+    try {
+      const { publicUrl } = await uploadAccountMedia('chat-media', file);
+      setForm((f) => ({ ...f, header_media_url: publicUrl }));
+      toast.success('Document uploaded successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Document upload failed');
     } finally {
       setUploadingHeader(false);
     }
@@ -833,6 +883,70 @@ export function TemplateManager() {
                       </span>
                     </div>
                   )}
+                  {form.header_format === 'video' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={headerVideoFileRef}
+                        type="file"
+                        accept="video/mp4,video/3gpp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void handleHeaderVideoFile(f);
+                          e.target.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingHeader}
+                        onClick={() => headerVideoFileRef.current?.click()}
+                      >
+                        {uploadingHeader ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="h-3.5 w-3.5" />
+                        )}
+                        Upload Video
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">
+                        MP4 or 3GP, max 16 MB
+                      </span>
+                    </div>
+                  )}
+                  {form.header_format === 'document' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={headerDocumentFileRef}
+                        type="file"
+                        accept=".pdf,.txt,.doc,.docx"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void handleHeaderDocumentFile(f);
+                          e.target.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingHeader}
+                        onClick={() => headerDocumentFileRef.current?.click()}
+                      >
+                        {uploadingHeader ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="h-3.5 w-3.5" />
+                        )}
+                        Upload Document
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">
+                        PDF, TXT, DOC, DOCX, max 16 MB
+                      </span>
+                    </div>
+                  )}
                   <Input
                     placeholder={t('mediaUrlPlaceholder', { format: form.header_format })}
                     value={form.header_media_url}
@@ -848,6 +962,21 @@ export function TemplateManager() {
                       alt="Header sample"
                       className="max-h-28 rounded-md border border-border object-contain"
                     />
+                  )}
+                  {form.header_format === 'video' && form.header_media_url && (
+                    <video
+                      src={form.header_media_url}
+                      controls
+                      className="max-h-28 rounded-md border border-border"
+                    />
+                  )}
+                  {form.header_format === 'document' && form.header_media_url && (
+                    <div className="flex items-center gap-2 p-2 rounded-md border border-border bg-muted">
+                      <Paperclip className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-foreground truncate">
+                        {form.header_media_url.split('/').pop()}
+                      </span>
+                    </div>
                   )}
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     {form.header_format === 'image'
