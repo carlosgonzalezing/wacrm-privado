@@ -45,6 +45,10 @@ export default function NewBroadcastPage() {
   >({});
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [name, setName] = useState('');
+  const [channels, setChannels] = useState<string[]>(['whatsapp']);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailHtmlContent, setEmailHtmlContent] = useState('');
+  const [emailTextContent, setEmailTextContent] = useState('');
 
   async function handleSend() {
     if (!template) return;
@@ -62,6 +66,10 @@ export default function NewBroadcastPage() {
         },
         variables,
         headerMediaUrl,
+        channels,
+        emailSubject,
+        emailHtmlContent,
+        emailTextContent,
       });
       router.push(`/broadcasts/${broadcastId}`);
     } catch (err) {
@@ -226,6 +234,14 @@ export default function NewBroadcastPage() {
               onBack={() => setCurrentStep(2)}
               isProcessing={isProcessing}
               progress={progress}
+              channels={channels}
+              onChannelsChange={setChannels}
+              emailSubject={emailSubject}
+              onEmailSubjectChange={setEmailSubject}
+              emailHtmlContent={emailHtmlContent}
+              onEmailHtmlContentChange={setEmailHtmlContent}
+              emailTextContent={emailTextContent}
+              onEmailTextContentChange={setEmailTextContent}
             />
           )}
         </div>

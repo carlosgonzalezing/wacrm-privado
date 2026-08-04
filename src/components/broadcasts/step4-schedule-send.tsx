@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client';
 import { MessageTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Send, Loader2, Users, Save } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Users, Save, Mail, MessageSquare } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface AudienceConfig {
@@ -33,6 +35,14 @@ interface Step4Props {
   onBack: () => void;
   isProcessing: boolean;
   progress: number;
+  channels?: string[];
+  onChannelsChange?: (channels: string[]) => void;
+  emailSubject?: string;
+  onEmailSubjectChange?: (subject: string) => void;
+  emailHtmlContent?: string;
+  onEmailHtmlContentChange?: (content: string) => void;
+  emailTextContent?: string;
+  onEmailTextContentChange?: (content: string) => void;
 }
 
 export function Step4ScheduleSend({
@@ -45,6 +55,14 @@ export function Step4ScheduleSend({
   onBack,
   isProcessing,
   progress,
+  channels = ['whatsapp'],
+  onChannelsChange,
+  emailSubject = '',
+  onEmailSubjectChange,
+  emailHtmlContent = '',
+  onEmailHtmlContentChange,
+  emailTextContent = '',
+  onEmailTextContentChange,
 }: Step4Props) {
   const t = useTranslations('Broadcasts.wizard');
   const [showConfirm, setShowConfirm] = useState(false);
@@ -111,6 +129,90 @@ export function Step4ScheduleSend({
           className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
         />
       </div>
+
+      {/* Channel Selection */}
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-foreground">Channels</label>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              checked={channels.includes('whatsapp')}
+              onCheckedChange={(checked) => {
+                if (onChannelsChange) {
+                  if (checked) {
+                    onChannelsChange([...channels, 'whatsapp']);
+                  } else {
+                    onChannelsChange(channels.filter((c) => c !== 'whatsapp'));
+                  }
+                }
+              }}
+              disabled={isProcessing}
+            />
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">WhatsApp</span>
+            </div>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              checked={channels.includes('email')}
+              onCheckedChange={(checked) => {
+                if (onChannelsChange) {
+                  if (checked) {
+                    onChannelsChange([...channels, 'email']);
+                  } else {
+                    onChannelsChange(channels.filter((c) => c !== 'email'));
+                  }
+                }
+              }}
+              disabled={isProcessing}
+            />
+            <div className="flex items-center gap-1.5">
+              <Mail className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">Email</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      {/* Email Fields */}
+      {channels.includes('email') && (
+        <div className="space-y-3 rounded-xl border border-border bg-card/50 p-4">
+          <p className="text-sm font-medium text-foreground">Email Content</p>
+          <div>
+            <label className="mb-1.5 block text-sm text-muted-foreground">Subject</label>
+            <Input
+              value={emailSubject}
+              onChange={(e) => onEmailSubjectChange?.(e.target.value)}
+              placeholder="Email subject"
+              disabled={isProcessing}
+              className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm text-muted-foreground">HTML Content</label>
+            <Textarea
+              value={emailHtmlContent}
+              onChange={(e) => onEmailHtmlContentChange?.(e.target.value)}
+              placeholder="<h1>Your email content</h1>"
+              disabled={isProcessing}
+              rows={6}
+              className="border-border bg-muted text-foreground placeholder:text-muted-foreground font-mono text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm text-muted-foreground">Text Content (fallback)</label>
+            <Textarea
+              value={emailTextContent}
+              onChange={(e) => onEmailTextContentChange?.(e.target.value)}
+              placeholder="Plain text version of your email"
+              disabled={isProcessing}
+              rows={3}
+              className="border-border bg-muted text-foreground placeholder:text-muted-foreground text-sm"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Summary Card */}
       <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
