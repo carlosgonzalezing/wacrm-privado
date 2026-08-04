@@ -49,6 +49,7 @@ export default function NewBroadcastPage() {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailHtmlContent, setEmailHtmlContent] = useState('');
   const [emailTextContent, setEmailTextContent] = useState('');
+  const [emailAttachments, setEmailAttachments] = useState<any[]>([]);
 
   async function handleSend() {
     if (!template) return;
@@ -242,6 +243,8 @@ export default function NewBroadcastPage() {
               onEmailHtmlContentChange={setEmailHtmlContent}
               emailTextContent={emailTextContent}
               onEmailTextContentChange={setEmailTextContent}
+              emailAttachments={emailAttachments}
+              onEmailAttachmentsChange={setEmailAttachments}
             />
           )}
         </div>

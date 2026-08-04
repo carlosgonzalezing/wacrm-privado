@@ -50,6 +50,7 @@ interface BroadcastPayload {
   emailSubject?: string;
   emailHtmlContent?: string;
   emailTextContent?: string;
+  emailAttachments?: any[];
 }
 
 interface UseBroadcastSendingReturn {
@@ -376,6 +377,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
           subject: payload.emailSubject,
           html_content: payload.emailHtmlContent,
           text_content: payload.emailTextContent,
+          attachments: payload.emailAttachments ?? [],
           status: 'sending',
           total_recipients: contacts.length,
           sent_count: 0,

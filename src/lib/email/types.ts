@@ -24,6 +24,15 @@ export interface EmailBroadcastData {
   from_email: string;
   html_content: string;
   text_content: string;
+  attachments?: EmailAttachment[];
+}
+
+export interface EmailAttachment {
+  id: string;
+  name: string;
+  url: string;
+  type: 'image' | 'video' | 'file';
+  size: number;
 }
 
 export interface EmailRecipient {

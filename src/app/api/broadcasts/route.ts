@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       text_content,
       from_name,
       from_email,
+      attachments,
     } = body
 
     if (!recipient_ids || recipient_ids.length === 0) {
@@ -210,6 +211,7 @@ export async function POST(request: Request) {
             from_email: from_email || emailConfig.from_email,
             html_content,
             text_content: text_content || '',
+            attachments: attachments || [],
           },
           recipients: emailRecipients,
         })

@@ -16,13 +16,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Send, Loader2, Users, Save, Mail, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Users, Save, Mail, MessageSquare, Paperclip, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface AudienceConfig {
   type: string;
   tagIds?: string[];
   csvContacts?: { phone: string; name?: string }[];
+}
+
+interface EmailAttachment {
+  id: string;
+  name: string;
+  url: string;
+  type: 'image' | 'video' | 'file';
+  size: number;
 }
 
 interface Step4Props {
@@ -43,6 +51,8 @@ interface Step4Props {
   onEmailHtmlContentChange?: (content: string) => void;
   emailTextContent?: string;
   onEmailTextContentChange?: (content: string) => void;
+  emailAttachments?: EmailAttachment[];
+  onEmailAttachmentsChange?: (attachments: EmailAttachment[]) => void;
 }
 
 export function Step4ScheduleSend({
@@ -63,11 +73,14 @@ export function Step4ScheduleSend({
   onEmailHtmlContentChange,
   emailTextContent = '',
   onEmailTextContentChange,
+  emailAttachments = [],
+  onEmailAttachmentsChange,
 }: Step4Props) {
   const t = useTranslations('Broadcasts.wizard');
   const [showConfirm, setShowConfirm] = useState(false);
   const [estimatedReach, setEstimatedReach] = useState<number>(0);
   const [loadingReach, setLoadingReach] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     async function calculateReach() {
@@ -109,6 +122,61 @@ export function Step4ScheduleSend({
         : audience.type === 'csv'
           ? t('scheduleSend.audienceCsv')
           : t('scheduleSend.audienceField');
+
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const newAttachments: EmailAttachment[] = [];
+
+      for (const file of Array.from(files)) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `email-attachments/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('email-attachments')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          continue;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('email-attachments')
+          .getPublicUrl(filePath);
+
+        const fileType = file.type.startsWith('image/') ? 'image' :
+                       file.type.startsWith('video/') ? 'video' : 'file';
+
+        newAttachments.push({
+          id: fileName,
+          name: file.name,
+          url: publicUrl,
+          type: fileType,
+          size: file.size,
+        });
+      }
+
+      if (onEmailAttachmentsChange) {
+        onEmailAttachmentsChange([...emailAttachments, ...newAttachments]);
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeAttachment(id: string) {
+    if (onEmailAttachmentsChange) {
+      onEmailAttachmentsChange(emailAttachments.filter(a => a.id !== id));
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -210,6 +278,79 @@ export function Step4ScheduleSend({
               rows={3}
               className="border-border bg-muted text-foreground placeholder:text-muted-foreground text-sm"
             />
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <label className="mb-1.5 block text-sm text-muted-foreground">Attachments</label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  id="email-attachments"
+                  multiple
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                  onChange={handleFileUpload}
+                  disabled={isProcessing || uploading}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="email-attachments"
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-border rounded-lg cursor-pointer hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Paperclip className="h-4 w-4" />
+                      Add Attachments
+                    </>
+                  )}
+                </label>
+              </div>
+
+              {emailAttachments.length > 0 && (
+                <div className="space-y-2">
+                  {emailAttachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="flex items-center justify-between p-2 rounded-lg bg-muted border border-border"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {attachment.type === 'image' && (
+                          <img
+                            src={attachment.url}
+                            alt={attachment.name}
+                            className="h-8 w-8 object-cover rounded"
+                          />
+                        )}
+                        {attachment.type === 'video' && (
+                          <div className="h-8 w-8 bg-primary/20 rounded flex items-center justify-center">
+                            <Paperclip className="h-4 w-4 text-primary" />
+                          </div>
+                        )}
+                        <span className="text-sm text-foreground truncate">
+                          {attachment.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({(attachment.size / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeAttachment(attachment.id)}
+                        disabled={isProcessing}
+                        className="p-1 hover:bg-muted-foreground/10 rounded disabled:opacity-50"
+                      >
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
