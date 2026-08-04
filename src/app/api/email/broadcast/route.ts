@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       from_name,
       from_email,
       broadcast_id,
+      channels,
     } = body
 
     if (!recipients && !recipient_ids) {

@@ -104,6 +104,7 @@ export async function POST(request: Request) {
       template_name,
       template_language,
       template_params,
+      channels,
     } = body
 
     // Normalize to a list of {phone, params} regardless of shape.

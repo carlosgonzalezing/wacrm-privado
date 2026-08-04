@@ -5,9 +5,15 @@
 -- Existing broadcasts default to 'whatsapp' channel.
 -- ============================================================
 
--- Add channel column to broadcasts
+-- Add channels array column to broadcasts (supports multiple channels)
 ALTER TABLE broadcasts
-  ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'whatsapp' CHECK (channel IN ('whatsapp', 'email'));
+  ADD COLUMN IF NOT EXISTS channels TEXT[] NOT NULL DEFAULT '{whatsapp}';
+
+-- Add check constraint to ensure only valid channels
+ALTER TABLE broadcasts
+  ADD CONSTRAINT valid_channels CHECK (
+    channels <@ ARRAY['whatsapp', 'email']
+  );
 
 -- Add email-specific fields to broadcasts
 ALTER TABLE broadcasts
