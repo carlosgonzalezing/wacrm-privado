@@ -28,9 +28,9 @@ ALTER TABLE broadcast_recipients
   ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMPTZ;
 
--- Add index for efficient lookup by channel
-CREATE INDEX IF NOT EXISTS idx_broadcasts_channel
-  ON broadcasts(channel);
+-- Add index for efficient lookup by channels
+CREATE INDEX IF NOT EXISTS idx_broadcasts_channels
+  ON broadcasts USING GIN (channels);
 
 -- Add index for email tracking
 CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_opened
