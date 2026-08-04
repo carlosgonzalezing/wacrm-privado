@@ -32,7 +32,7 @@ const PROVIDER_LABEL: Record<EmailProvider, string> = {
 export function EmailConfig() {
   const t = useTranslations('Settings.email');
   const supabase = createClient();
-  const { accountId, loading: authLoading, profileLoading } = useAuth();
+  const { user, accountId, loading: authLoading, profileLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -134,8 +134,14 @@ export function EmailConfig() {
   const handleTest = async () => {
     setTesting(true);
     try {
-      // TODO: Implement test email sending
-      toast.success('Test email sent successfully');
+      const res = await fetch('/api/email/test', { method: 'POST' });
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success('Test email sent successfully to ' + (user?.email || 'your email'));
+      } else {
+        toast.error(data.error || 'Failed to send test email');
+      }
     } catch {
       toast.error('Failed to send test email');
     } finally {
