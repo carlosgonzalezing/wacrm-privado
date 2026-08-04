@@ -1,0 +1,176 @@
+{
+  "name": "Captura de Leads - Horeca",
+  "description": "Flujo conversacional para capturar información de leads después de una campaña. Captura: producto de interés, tipología de negocio, teléfono y nombre. Finaliza con traspaso a asesor humano.",
+  "status": "draft",
+  "trigger_type": "first_inbound_message",
+  "trigger_config": {
+    "filter_campaigns": true
+  },
+  "entry_node_id": "welcome",
+  "fallback_policy": {
+    "on_unknown_reply": "reprompt",
+    "max_reprompts": 2,
+    "on_timeout_hours": 24,
+    "on_exhaust": "handoff"
+  },
+  "nodes": [
+    {
+      "node_key": "welcome",
+      "node_type": "send_message",
+      "config": {
+        "message": "¡Gracias por tu interés! 🎉\n\nSoy el asistente virtual de [Empresa]. Para poder ayudarte mejor, necesito capturar algunos datos básicos.\n\n¿Qué producto o contenido te llamó más la atención?",
+        "next_node": "ask_product"
+      },
+      "position_x": 100,
+      "position_y": 100
+    },
+    {
+      "node_key": "ask_product",
+      "node_type": "collect_input",
+      "config": {
+        "prompt": "¿Qué producto o contenido te gustó más?",
+        "variable_name": "producto_interes",
+        "input_type": "text",
+        "validation": {
+          "required": true,
+          "min_length": 2
+        },
+        "next_node": "ask_business_type"
+      },
+      "position_x": 300,
+      "position_y": 100
+    },
+    {
+      "node_key": "ask_business_type",
+      "node_type": "send_buttons",
+      "config": {
+        "message": "¿Cuál es la tipología de tu negocio?",
+        "buttons": [
+          {
+            "label": "🏨 Hotel",
+            "reply_id": "hotel",
+            "next_node": "ask_name"
+          },
+          {
+            "label": "🍽️ Restaurante",
+            "reply_id": "restaurante",
+            "next_node": "ask_name"
+          },
+          {
+            "label": "☕ Cafetería",
+            "reply_id": "cafeteria",
+            "next_node": "ask_name"
+          },
+          {
+            "label": "🎰 Casino",
+            "reply_id": "casino",
+            "next_node": "ask_name"
+          },
+          {
+            "label": "🏪 Otro",
+            "reply_id": "otro",
+            "next_node": "ask_business_other"
+          }
+        ]
+      },
+      "position_x": 500,
+      "position_y": 100
+    },
+    {
+      "node_key": "ask_business_other",
+      "node_type": "collect_input",
+      "config": {
+        "prompt": "¿Cuál es la tipología de tu negocio?",
+        "variable_name": "tipologia_negocio",
+        "input_type": "text",
+        "validation": {
+          "required": true,
+          "min_length": 2
+        },
+        "next_node": "ask_name"
+      },
+      "position_x": 700,
+      "position_y": 200
+    },
+    {
+      "node_key": "ask_name",
+      "node_type": "collect_input",
+      "config": {
+        "prompt": "Perfecto. ¿Cuál es tu nombre completo?",
+        "variable_name": "contacto_nombre",
+        "input_type": "text",
+        "validation": {
+          "required": true,
+          "min_length": 3
+        },
+        "next_node": "ask_phone"
+      },
+      "position_x": 700,
+      "position_y": 100
+    },
+    {
+      "node_key": "ask_phone",
+      "node_type": "collect_input",
+      "config": {
+        "prompt": "¿Cuál es tu número de teléfono para contactarte?",
+        "variable_name": "contacto_telefono",
+        "input_type": "text",
+        "validation": {
+          "required": true,
+          "pattern": "^\\+?[0-9]{10,15}$",
+          "error_message": "Por favor ingresa un número de teléfono válido (mínimo 10 dígitos)"
+        },
+        "next_node": "create_lead"
+      },
+      "position_x": 900,
+      "position_y": 100
+    },
+    {
+      "node_key": "create_lead",
+      "node_type": "http_fetch",
+      "config": {
+        "url": "/api/leads/create",
+        "method": "POST",
+        "body": {
+          "producto_interes": "{{vars.producto_interes}}",
+          "tipologia_negocio": "{{vars.tipologia_negocio}}",
+          "contacto_nombre": "{{vars.contacto_nombre}}",
+          "contacto_telefono": "{{vars.contacto_telefono}}"
+        },
+        "next_node": "confirmation"
+      },
+      "position_x": 1100,
+      "position_y": 100
+    },
+    {
+      "node_key": "confirmation",
+      "node_type": "send_message",
+      "config": {
+        "message": "¡Perfecto! ✅\n\nHe registrado tu información:\n• Producto de interés: {{vars.producto_interes}}\n• Tipología: {{vars.tipologia_negocio}}\n• Nombre: {{vars.contacto_nombre}}\n• Teléfono: {{vars.contacto_telefono}}\n\nUn asesor comercial te contactará pronto. 📞",
+        "next_node": "handoff"
+      },
+      "position_x": 1300,
+      "position_y": 100
+    },
+    {
+      "node_key": "handoff",
+      "node_type": "handoff",
+      "config": {
+        "message": "Conversación transferida a asesor humano.",
+        "notify_agent": true,
+        "next_node": "end"
+      },
+      "position_x": 1500,
+      "position_y": 100
+    },
+    {
+      "node_key": "end",
+      "node_type": "end",
+      "config": {
+        "reason": "lead_captured"
+      },
+      "position_x": 1700,
+      "position_y": 100
+    }
+  ]
+}
