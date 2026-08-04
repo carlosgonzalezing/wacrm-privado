@@ -1,4 +1,5 @@
 import { sendSendGridEmail, sendBatchSendGridEmails } from './sendgrid';
+import { sendResendEmail, sendBatchResendEmails } from './resend';
 import type { EmailProvider, EmailSendResult, EmailBroadcastData, EmailRecipient } from './types';
 
 export interface SendEmailArgs {
@@ -24,15 +25,14 @@ export async function sendEmail(args: SendEmailArgs): Promise<EmailSendResult> {
   switch (provider) {
     case 'sendgrid':
       return sendSendGridEmail(apiKey, data, recipient);
+    case 'resend':
+      return sendResendEmail(apiKey, data, recipient);
     case 'mailgun':
       // TODO: Implement Mailgun
       return { success: false, error: 'Mailgun not implemented yet' };
     case 'ses':
       // TODO: Implement AWS SES
       return { success: false, error: 'AWS SES not implemented yet' };
-    case 'resend':
-      // TODO: Implement Resend
-      return { success: false, error: 'Resend not implemented yet' };
     default:
       return { success: false, error: `Unknown provider: ${provider}` };
   }
@@ -47,15 +47,14 @@ export async function sendBatchEmails(args: SendBatchEmailsArgs): Promise<EmailS
   switch (provider) {
     case 'sendgrid':
       return sendBatchSendGridEmails(apiKey, data, recipients);
+    case 'resend':
+      return sendBatchResendEmails(apiKey, data, recipients);
     case 'mailgun':
       // TODO: Implement Mailgun
       return recipients.map(() => ({ success: false, error: 'Mailgun not implemented yet' }));
     case 'ses':
       // TODO: Implement AWS SES
       return recipients.map(() => ({ success: false, error: 'AWS SES not implemented yet' }));
-    case 'resend':
-      // TODO: Implement Resend
-      return recipients.map(() => ({ success: false, error: 'Resend not implemented yet' }));
     default:
       return recipients.map(() => ({ success: false, error: `Unknown provider: ${provider}` }));
   }
