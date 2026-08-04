@@ -51,7 +51,16 @@ export async function POST(request: Request) {
     }
 
     // Decrypt API key
-    const apiKey = decrypt(config.api_key_encrypted)
+    let apiKey: string
+    try {
+      apiKey = decrypt(config.api_key_encrypted)
+    } catch (decryptError) {
+      console.error('Failed to decrypt API key:', decryptError)
+      return NextResponse.json(
+        { error: 'Failed to decrypt API key. Please re-enter your API key.' },
+        { status: 500 }
+      )
+    }
 
     // Get user's email for test
     const testEmail = user.email
